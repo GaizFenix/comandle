@@ -19,8 +19,9 @@ cuenta de seguridad.
 - Ves la categoría desde el principio (archivos, redes, permisos...). Con dos
   intentos fallidos se destapa una pista, con cuatro otra y con cinco la última.
 - Solo valen nombres de comandos reales: la lista está en
-  [`data/allowed.txt`](data/allowed.txt). Escribí `?` para ver todos los comandos
-  válidos con esa cantidad de letras.
+  [`data/allowed.txt`](data/allowed.txt). En la terminal escribí `?` para ver
+  todos los comandos válidos con esa cantidad de letras; en la web están detrás
+  de «N comandos» y `tab` completa.
 - Al final copiás el resultado para compartirlo sin spoilers:
 
 ```
@@ -30,6 +31,16 @@ comandle #1 4/6
 🟩🟩⬛🟩⬛
 🟩🟩🟩🟩🟩
 ```
+
+## En la web
+
+![La web: tablero, teclado y Tux citando a Ken Thompson](docs/web.png)
+
+Un personaje ASCII comenta la ronda como lo haría `cowsay`: cambia los ojos
+cuando vas mal, festeja con `exit 0` y muere con un `segmentation fault`. Si lo
+tocás, corre `fortune`. Por defecto es Tux; desde el selector podés cambiarlo
+por la vaca, un conejo, un gato, un búho, un cangrejo o un fantasma, y la web
+recuerda tu elección.
 
 ## Instalación
 
@@ -75,7 +86,7 @@ una nota de seguridad. Los pasos están en [CONTRIBUTING.md](CONTRIBUTING.md).
 ## English
 
 comandle is a daily Wordle-like game for Linux and security commands, played in
-the terminal and written in Spanish. When a round ends it explains the command
+the terminal or the browser and written in Spanish. When a round ends it explains the command
 with examples and a security note. No network access, no telemetry; stats stay
 in a local file. Install with `go install github.com/ValentinTorassa/comandle@latest`.
 

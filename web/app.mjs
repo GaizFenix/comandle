@@ -1,6 +1,7 @@
 // comandle in the browser: the same daily command as the terminal, with the
 // state kept in this browser only. Everything is built with DOM calls and
-// textContent; nothing is parsed as HTML.
+// textContent; nothing is parsed as HTML. An ASCII cow (cowsay) comments on
+// the round; its words also go to a live region for screen readers.
 import {
   ABSENT,
   CORRECT,
@@ -60,21 +61,22 @@ const store = {
   },
 };
 
-const COLOUR = { [ABSENT]: "c-graphite is-absent", [PRESENT]: "c-lemon", [CORRECT]: "c-mint" };
+const MARK = { [ABSENT]: "c0", [PRESENT]: "c1", [CORRECT]: "c2" };
 const MARK_TEXT = { [ABSENT]: "no está", [PRESENT]: "está, en otra posición", [CORRECT]: "en su lugar" };
 const KEY_ROWS = ["qwertyuiop", "asdfghjkl", "zxcvbnm", "1234567890-"];
 // Misses that unlock each clue: the same thresholds as cluesVisible.
 const CLUE_AT = [2, 4, 5];
+const NEXT_CLUE = ["primera pista", "otra pista", "última pista"];
 // Motion timings (ms), matched to style.css.
-const STAGGER = 140;
-const FLIP = 640;
-const WAVE_STAGGER = 80;
+const STAGGER = 150;
+const FLIP = 560;
+const WAVE_STAGGER = 90;
 const WAVE = 520;
 
 const media = (q) => window.matchMedia(q).matches;
 const reduced = () => media("(prefers-reduced-motion: reduce)");
 const phone = () => media("(max-width: 599px)");
-const stacked = () => media("(max-width: 1219px)");
+const len32 = (s) => Array.from(s).length;
 
 let commands = [];
 let allowed = new Set();
@@ -82,7 +84,6 @@ let words = [];
 let game = null;
 let busy = false;
 let comp = null; // tab completion in progress: { base, list, idx }
-let clueSel = -1;
 let shownClues = 0;
 let countdownTimer = 0;
 let toastTimer = 0;
@@ -105,12 +106,450 @@ async function load() {
 
 const won = () => game.guesses.at(-1) === game.answer.id;
 const over = () => won() || game.guesses.length >= MAX_TRIES;
-const answerLen = () => Array.from(game.answer.id).length;
+const answerLen = () => len32(game.answer.id);
 const misses = () => game.guesses.length - (won() ? 1 : 0);
 const dayLabel = () => (game.practice ? "práctica" : `#${game.day}`);
 
 function statsNow() {
   return { played: 0, wins: 0, streak: 0, maxStreak: 0, dist: [0, 0, 0, 0, 0, 0], ...store.get("comandle:stats", {}) };
+}
+
+// ------------------------------------------------------------------ buddies
+
+// The character that comments on the round. Every buddy is a cowsay-style
+// template whose row 1 holds the face: E marks the eyes and U the tongue,
+// swapped per mood like cowsay's -p (paranoid), -t (tired), -w (wired),
+// -d (dead), -b (borg) and -g (greedy). indent places the art under the
+// bubble so the thought trail (columns 8 and 9, rows 0 and 1) meets the face.
+const E = "\u0001";
+const U = "\u0002";
+const EYE = { normal: "o", paranoid: "@", tired: "-", wired: "^", dead: "x", blink: "-", borg: "=", greedy: "$" };
+const ART_ROWS = 7; // the tallest buddy: every one gets the same footprint
+const MINI_ROWS = 3; // short screens: just the face
+const STACK_ROWS = ART_ROWS + 6; // stacked: art plus a bubble of up to 4 lines
+const DEFAULT_BUDDY = "tux";
+const BUDDIES = {
+  tux: {
+    name: "tux, el pingüino",
+    tag: "tux",
+    file: "tux",
+    indent: 9,
+    eyes: (c) => `${c}_${c}`,
+    art: ["    .--.", `   |${E} |`, "   |:_/ |", "  //   \\ \\", " (|     | )", "/'\\_   _/`\\", "\\___)=(___/"],
+  },
+  vaca: {
+    name: "la vaca",
+    tag: "vaca",
+    file: "default",
+    indent: 12,
+    eyes: (c) => c + c,
+    face: { wired: "O" },
+    tongue: (mood) => (mood === "dead" ? "U " : "  "),
+    art: ["^__^", `(${E})\\_______`, "(__)\\       )\\/\\", ` ${U} ||----w |`, "    ||     ||"],
+  },
+  conejo: {
+    name: "un conejo",
+    tag: "conejo",
+    file: "bunny",
+    indent: 11,
+    eyes: (c) => `${c}.${c}`,
+    art: ["(\\(\\", `( ${E})`, 'o_(")(")'],
+  },
+  gato: {
+    name: "un gato",
+    tag: "gato",
+    file: "kitty",
+    indent: 11,
+    eyes: (c) => `${c}.${c}`,
+    art: [" /\\_/\\", `( ${E} )`, " > ^ <"],
+  },
+  buho: {
+    name: "un búho",
+    tag: "búho",
+    file: "búho",
+    indent: 12,
+    eyes: (c) => `${c},${c}`,
+    face: { normal: "O" },
+    art: [" ,_,", `(${E})`, "(   )", '-"-"-'],
+  },
+  cangrejo: {
+    name: "un cangrejo",
+    tag: "cangrejo",
+    file: "cangrejo",
+    indent: 11,
+    eyes: (c) => `${c} ${c}`,
+    art: ["(\\/)   (\\/)", ` \\\\ ${E} //`, "  \\(___)/", "  /|   |\\"],
+  },
+  fantasma: {
+    name: "un fantasma",
+    tag: "fantasma",
+    file: "fantasma",
+    indent: 12,
+    eyes: (c) => `${c} ${c}`,
+    art: [" .-.", `(${E})`, "| O \\", " \\   \\", "  `~~~'"],
+  },
+};
+// Tapping the buddy is fortune | cowsay: real, attributed quotes.
+const FORTUNES = [
+  ["When in doubt, use brute force.", "Ken Thompson"],
+  ["UNIX is simple. It just takes a genius to understand its simplicity.", "Dennis Ritchie"],
+  ["Talk is cheap. Show me the code.", "Linus Torvalds"],
+  ["Premature optimization is the root of all evil.", "Donald Knuth"],
+  ["There are only two hard things in Computer Science: cache invalidation and naming things.", "Phil Karlton"],
+  ["Those who don't understand Unix are condemned to reinvent it, poorly.", "Henry Spencer"],
+  ["Simplicity is prerequisite for reliability.", "Edsger Dijkstra"],
+  ["Security is a process, not a product.", "Bruce Schneier"],
+  ["Given enough eyeballs, all bugs are shallow.", "Eric S. Raymond"],
+  ["Debugging is twice as hard as writing the code in the first place.", "Brian Kernighan"],
+];
+const COW_COLS = 34;
+const validBuddy = (id) => (Object.hasOwn(BUDDIES, id) ? id : DEFAULT_BUDDY);
+const cow = {
+  id: validBuddy(store.get("comandle:buddy", DEFAULT_BUDDY)),
+  base: { text: "hola", mood: "normal" }, // the resting line for the round
+  view: null, // what is on screen
+  shown: Infinity, // characters typed out so far
+  typer: 0,
+  revert: 0,
+  blink: 0,
+  blinking: false,
+  last: -1,
+  notFound: 0, // invalid words in a row
+  charW: 0,
+  compact: false,
+};
+const buddy = () => BUDDIES[cow.id];
+
+function wrapText(text, cols) {
+  if (text.includes("\n")) return text.split("\n").flatMap((part) => wrapText(part, cols));
+  const out = [];
+  let line = "";
+  for (const word of text.split(" ")) {
+    if (!line) line = word;
+    else if (len32(line) + 1 + len32(word) <= cols) line += ` ${word}`;
+    else {
+      out.push(line);
+      line = word;
+    }
+    while (len32(line) > cols) {
+      const cut = Array.from(line);
+      out.push(cut.slice(0, cols).join(""));
+      line = cut.slice(cols).join("");
+    }
+  }
+  out.push(line);
+  return out;
+}
+
+// A row is a list of [char, class] cells, so faces, trails and bubbles can be
+// laid over each other on an exact monospace grid.
+const cells = (text, cls) => Array.from(text, (ch) => [ch, ch === " " ? "" : cls]);
+
+function artRows(b, mood) {
+  const eyes = b.eyes(b.face?.[mood] ?? EYE[mood] ?? EYE.normal);
+  const tongue = b.tongue ? b.tongue(mood) : "";
+  return b.art.map((line) => {
+    const row = [];
+    for (const ch of line) {
+      if (ch === E) for (const c of eyes) row.push([c, "e"]);
+      else if (ch === U) for (const c of tongue) row.push([c, c === " " ? "" : "u"]);
+      else row.push([ch, ch === " " ? "" : "w"]);
+    }
+    return row;
+  });
+}
+
+function bubbleRows(m, shown, cols) {
+  const lines = wrapText(m.text, cols);
+  const w = Math.max(...lines.map(len32));
+  const n = lines.length;
+  const rows = [[[" ", ""], ...cells("_".repeat(w + 2), "b"), [" ", ""]]];
+  let left = shown;
+  lines.forEach((ln, i) => {
+    const [o, c] = m.think ? ["(", ")"] : n === 1 ? ["<", ">"] : i === 0 ? ["/", "\\"] : i === n - 1 ? ["\\", "/"] : ["|", "|"];
+    const vis = Array.from(ln).slice(0, Math.max(0, left));
+    left -= len32(ln) + 1;
+    rows.push([[o, "b"], [" ", ""], ...vis.map((ch) => [ch, "t"]), ...cells(" ".repeat(w - vis.length + 1), ""), [c, "b"]]);
+  });
+  rows.push([[" ", ""], ...cells("-".repeat(w + 2), "b"), [" ", ""]]);
+  return { rows, width: w + 4 };
+}
+
+// Exactly what cowsay/cowthink would print (stacked), or the compact phone
+// form with the bubble beside the face (side). Every buddy fills the same
+// number of rows, so switching never moves the page.
+function buddyRows(m, { shown = Infinity, cols = COW_COLS, side = false, mini = false, pad = true, id = cow.id } = {}) {
+  const b = BUDDIES[id];
+  let art = artRows(b, m.mood ?? "normal");
+  const height = mini ? MINI_ROWS : ART_ROWS;
+  if (mini) art = art.slice(0, MINI_ROWS);
+  const bub = bubbleRows(m, shown, cols);
+  const t = m.think ? "o" : "\\";
+  if (!side) {
+    const rows = art.map((row) => [...cells(" ".repeat(b.indent), ""), ...row]);
+    for (const [r, c] of [[0, 8], [1, 9]]) {
+      while (rows[r].length <= c) rows[r].push([" ", ""]);
+      if (rows[r][c][0] === " ") rows[r][c] = [t, "b"];
+    }
+    const blank = Array.from({ length: pad ? Math.max(0, STACK_ROWS - bub.rows.length - art.length) : 0 }, () => []);
+    return [...blank, ...bub.rows, ...rows];
+  }
+  // the face sits 3 columns from the bubble; rows under the bubble may
+  // reach back below it (Tux's feet)
+  const beside = art.slice(0, bub.rows.length).map((row) => row.findIndex((c) => c[0] !== " ")).filter((i) => i >= 0);
+  const x = bub.width + 3 - Math.min(3, ...beside);
+  const out = [];
+  const total = Math.max(height, bub.rows.length);
+  for (let r = 0; r < total; r++) {
+    const row = [...(bub.rows[r] ?? cells(" ".repeat(bub.width), ""))];
+    while (row.length < x) row.push([" ", ""]);
+    (art[r] ?? []).forEach((c, j) => {
+      if (c[0] !== " " || !row[x + j]) row[x + j] = c;
+    });
+    if (r === 1 && m.think && row[bub.width + 1]?.[0] === " ") row[bub.width + 1] = ["o", "b"];
+    out.push(row);
+  }
+  return out;
+}
+
+// Runs of one class become one span; runs of _ and of -- get a solid CSS
+// line instead of the font's dashed glyphs (the text stays plain ASCII).
+function paintRows(node, rows) {
+  const frag = document.createDocumentFragment();
+  rows.forEach((row, i) => {
+    if (i) frag.append("\n");
+    let k = 0;
+    while (k < row.length) {
+      const cls = row[k][1];
+      let text = "";
+      while (k < row.length && row[k][1] === cls) text += row[k++][0];
+      if (!cls) {
+        frag.append(text);
+        continue;
+      }
+      for (const [, run] of text.matchAll(/(_+|-{2,}|[^_-]+|-)/g)) {
+        const extra = cls === "t" ? "" : run[0] === "_" ? " us" : run.length > 1 && run[0] === "-" ? " hy" : "";
+        frag.append(el("span", cls + extra, run));
+      }
+    }
+  });
+  node.replaceChildren(frag);
+}
+
+function artClass(m, base = "cow-art") {
+  return `${base}${m.think ? " think" : ""}${m.tone ? ` ${m.tone}` : ""}`;
+}
+
+// How many columns the bubble may use: it wraps like cowsay -W, never wider
+// than 34, and on phones leaves room for the buddy beside it.
+function cowCols(side) {
+  const art = $("cow-art");
+  if (!cow.charW) {
+    const probe = el("span", null, "0123456789".repeat(4));
+    probe.style.position = "absolute";
+    probe.style.visibility = "hidden";
+    art.append(probe);
+    cow.charW = probe.getBoundingClientRect().width / 40 || 8;
+    probe.remove();
+  }
+  const artW = side ? Math.max(...buddy().art.map(len32)) + 3 : 0;
+  const room = Math.floor($("talk").clientWidth / cow.charW) - 4 - artW;
+  return Math.max(14, Math.min(COW_COLS, room));
+}
+
+function drawCow() {
+  const m = cow.view;
+  if (!m) return;
+  const side = phone();
+  const mood = cow.blinking && (m.mood ?? "normal") === "normal" ? "blink" : m.mood;
+  const node = $("cow-art");
+  node.className = artClass(m);
+  paintRows(node, buddyRows({ ...m, mood }, { shown: cow.shown, cols: cowCols(side), side, mini: side && cow.compact }));
+}
+
+// Show a line, typing it out like a terminal unless it is a thought.
+function showLine(m, { type = true } = {}) {
+  cow.view = m;
+  clearInterval(cow.typer);
+  const total = len32(m.text);
+  if (!type || m.think || reduced()) {
+    cow.shown = Infinity;
+    drawCow();
+    return;
+  }
+  cow.shown = 0;
+  const step = Math.max(1, Math.ceil(total / 16));
+  cow.typer = setInterval(() => {
+    cow.shown += step;
+    if (cow.shown >= total + 4) {
+      cow.shown = Infinity;
+      clearInterval(cow.typer);
+    }
+    drawCow();
+  }, 24);
+  drawCow();
+}
+
+function announce(text) {
+  const live = $("cow-say");
+  live.textContent = "";
+  // a fresh node so repeated lines are read again
+  requestAnimationFrame(() => (live.textContent = text));
+}
+
+// The buddy says something about the round: it becomes the resting line.
+function say(m, { speak = true, extra = "", type = true } = {}) {
+  clearTimeout(cow.revert);
+  cow.base = m;
+  showLine(m, { type });
+  if (speak) announce(extra ? `${m.text}. ${extra}` : m.text);
+}
+
+// What the buddy shows right now: thinking while you type, else its line.
+function settleCow({ type = false } = {}) {
+  clearTimeout(cow.revert);
+  if (game && !over() && game.current) {
+    const cur = game.current;
+    const m = mood();
+    const full = len32(cur) === answerLen();
+    showLine({ text: full ? `${cur}?` : "o O o", think: true, mood: m, tone: m === "normal" ? "" : "warn" });
+    return;
+  }
+  showLine(cow.base, { type });
+}
+
+function mood() {
+  if (!game || over()) return "normal";
+  const m = misses();
+  if (m >= 5) return "tired"; // last try: worried
+  if (m >= 4) return "paranoid";
+  return "normal";
+}
+
+function restingLine() {
+  if (over()) return endLine();
+  const n = game.guesses.length;
+  if (!n) return { text: game.practice ? "práctica · no queda en el historial" : `${answerLen()} letras · ${MAX_TRIES} intentos`, mood: mood() };
+  return guessLine();
+}
+
+// After a miss. At 4 misses the paranoid face (cowsay -p) says the rest.
+function guessLine() {
+  const m = misses();
+  const md = mood();
+  const tone = md === "normal" ? "" : "warn";
+  if (m >= 5) return { text: "último intento. no hay --dry-run", mood: md, tone };
+  if (m === 2) return { text: "nueva pista", mood: md, tone };
+  return { text: `intento ${game.guesses.length + 1}/${MAX_TRIES}`, mood: md, tone };
+}
+
+function endLine() {
+  const n = game.guesses.length;
+  if (won()) {
+    const text = n === 1 ? "exit 0 en 1. ¿leíste el código fuente?" : n === MAX_TRIES ? `exit 0 · ${n}/${MAX_TRIES} · sin margen` : `exit 0 · ${n}/${MAX_TRIES}`;
+    return { text, mood: "wired", tone: "win" };
+  }
+  return { text: "segmentation fault (core dumped)", mood: "dead", tone: "dead" };
+}
+
+// Tapping the buddy: fortune | cowsay. Thompson first, then no repeats.
+function poke() {
+  clearTimeout(cow.revert);
+  let i = cow.last < 0 ? 0 : Math.floor(Math.random() * FORTUNES.length);
+  if (i === cow.last) i = (i + 1) % FORTUNES.length;
+  cow.last = i;
+  const [quote, author] = FORTUNES[i];
+  const line = { text: `${quote}\n  — ${author}`, mood: "normal", tone: "fun" };
+  showLine(line);
+  announce(`${quote} — ${author}`);
+  sound.play("tab");
+  cow.revert = setTimeout(() => settleCow(), 8000);
+}
+
+// Easter egg: now and then the buddy blinks.
+function scheduleBlink() {
+  clearTimeout(cow.blink);
+  cow.blink = setTimeout(
+    () => {
+      if (!reduced() && !document.hidden && cow.view && (cow.view.mood ?? "normal") === "normal" && cow.shown === Infinity) {
+        cow.blinking = true;
+        drawCow();
+        setTimeout(() => {
+          cow.blinking = false;
+          drawCow();
+        }, 160);
+      }
+      scheduleBlink();
+    },
+    3200 + Math.random() * 5200,
+  );
+}
+
+// Switch buddy: same mood, the change shown as "buddy: tux", remembered.
+function setBuddy(id, { greet = true } = {}) {
+  id = validBuddy(id);
+  const changed = id !== cow.id;
+  cow.id = id;
+  store.set("comandle:buddy", id);
+  paintBuddyControls();
+  if (!changed || !greet) return drawCow();
+  if (game) cow.base = restingLine();
+  const m = cow.base.mood ?? mood();
+  const text = `$ cowsay -f ${buddy().file}`;
+  showLine({ text, mood: m, tone: cow.base.tone === "win" || cow.base.tone === "dead" ? cow.base.tone : "" });
+  announce(text);
+  clearTimeout(cow.revert);
+  cow.revert = setTimeout(() => settleCow(), 4200);
+  fit();
+}
+
+// The picker: a radio group with a live preview of every buddy, in the
+// current mood.
+function buildBuddyPicker() {
+  const grid = $("bud-grid");
+  grid.replaceChildren();
+  for (const [id, b] of Object.entries(BUDDIES)) {
+    const opt = el("label", "bud-opt");
+    const input = el("input");
+    input.type = "radio";
+    input.name = "buddy";
+    input.value = id;
+    input.addEventListener("change", () => input.checked && setBuddy(id));
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        closeSheet();
+      }
+    });
+    opt.addEventListener("click", (e) => {
+      if (e.detail > 0) setTimeout(closeSheet, 260); // a pointer pick closes it
+    });
+    const art = el("span", "cow-art bud-art");
+    art.setAttribute("aria-hidden", "true");
+    art.dataset.id = id;
+    opt.append(input, art, el("span", "bud-name", b.name));
+    grid.append(opt);
+  }
+}
+
+function paintBuddyPreviews() {
+  const m = (cow.view?.mood ?? "normal") === "blink" ? "normal" : cow.view?.mood ?? "normal";
+  for (const art of $("bud-grid").querySelectorAll(".bud-art")) {
+    paintRows(art, artRows(BUDDIES[art.dataset.id], m));
+  }
+}
+
+function paintBuddyControls() {
+  const b = buddy();
+  for (const input of $("bud-grid").querySelectorAll("input")) input.checked = input.value === cow.id;
+  for (const id of ["buddy-open", "help-buddy"]) {
+    const chip = $(id);
+    chip.replaceChildren(el("span", null, b.tag), icon(["m4.5 6.5 3.5 3.5 3.5-3.5"], "0 0 16 16"));
+    chip.setAttribute("aria-label", `Personaje: ${b.name}. Cambiar`);
+  }
+  const help = $("help-cow");
+  help.className = "cow-art small";
+  paintRows(help, buddyRows({ text: "adiviná el comando en 6 intentos", mood: "normal" }, { pad: false }));
 }
 
 // ------------------------------------------------------------------ rounds
@@ -134,87 +573,43 @@ function startPractice() {
 
 function setupRound() {
   const len = answerLen();
-  game.pool = words.filter((w) => Array.from(w).length === len);
+  game.pool = words.filter((w) => len32(w) === len);
   comp = null;
-  clueSel = -1;
+  cow.notFound = 0;
   shownClues = over() ? 0 : cluesVisible(game.guesses, game.answer.id);
   busy = false;
   clearInterval(countdownTimer);
   closeDrawer();
   $("end").hidden = true;
   $("end").replaceChildren();
-  $("layout").classList.remove("over");
-  $("game").style.setProperty("--len", String(len));
+  $("result").hidden = true;
+  $("result").replaceChildren();
+  $("game").classList.remove("over");
+  document.body.style.setProperty("--len", String(len));
   buildBoard();
   render();
+  if (!over()) say(restingLine(), { speak: false });
 }
 
 // ------------------------------------------------------------------ rendering
 
 function render() {
   $("day").textContent = dayLabel();
-  paintMeta();
-  paintOled();
+  $("day").classList.toggle("practice", game.practice);
   paintBoard();
   paintClues();
-  paintInput();
+  paintSuggest();
+  paintWords();
   paintKeyboard();
+  fit();
 }
 
 // Everything that follows what is being typed.
 function paintInput() {
-  paintPrompt();
   paintBoard();
   paintSuggest();
   paintWords();
-}
-
-function paintPrompt() {
-  const done = over();
-  $("prompt-cmd").textContent = done ? "man" : "comandle";
-  $("prompt-arg").textContent = done
-    ? ` ${game.answer.id}`
-    : `${game.practice ? " practica" : ""}${game.current ? ` ${game.current}` : " "}`;
-}
-
-function paintMeta() {
-  const meta = $("meta");
-  meta.classList.remove("err");
-  meta.replaceChildren(
-    el("b", null, game.answer.category),
-    el("span", "dot"),
-    `${answerLen()} letras`,
-    el("span", "dot"),
-    game.answer.level,
-  );
-}
-
-function paintOled() {
-  const tries = over() ? game.guesses.length : game.guesses.length + 1;
-  const oled = $("oled");
-  oled.replaceChildren();
-  for (const [label, value] of [
-    ["ronda", dayLabel()],
-    ["intento", `${tries}/${MAX_TRIES}`],
-    ["fallos", String(misses())],
-  ]) {
-    const cell = el("div");
-    cell.append(el("span", null, label), el("b", null, value));
-    oled.append(cell);
-  }
-}
-
-function fillCap(node, letter, mark) {
-  node.replaceChildren();
-  if (letter) node.append(el("span", "lg", letter));
-  if (mark === PRESENT) node.append(el("i", "cue"));
-  if (mark === CORRECT) node.append(el("i", "home"));
-}
-
-function capEl(tag, cls, letter, mark) {
-  const node = el(tag, `cap ${cls}`);
-  fillCap(node, letter, mark);
-  return node;
+  settleCow();
 }
 
 function buildBoard() {
@@ -248,77 +643,77 @@ function paintBoard(reveal = -1) {
       let sig = "empty";
       if (marks) sig = `m${marks[i]}${ch}`;
       else if (ch) sig = `t${ch}`;
-      else if (typing && i === letters.length) sig = "active";
+      else if (typing && i === letters.length && !busy) sig = "active";
       if (cell.dataset.sig === sig) return;
       const was = cell.dataset.sig ?? "";
       cell.dataset.sig = sig;
       cell.style.removeProperty("--d");
       cell.style.removeProperty("--wd");
       if (marks) {
-        cell.className = `cell cap ${COLOUR[marks[i]]}`;
-        fillCap(cell, ch, marks[i]);
-        const label = `${ch} · ${MARK_TEXT[marks[i]]}`;
-        cell.setAttribute("aria-label", label);
-        cell.title = label;
+        cell.className = `cell ${MARK[marks[i]]}`;
+        cell.textContent = ch;
+        cell.setAttribute("aria-label", `${ch} · ${MARK_TEXT[marks[i]]}`);
         if (r === reveal && !reduced()) {
           cell.style.setProperty("--d", `${i * STAGGER}ms`);
           cell.classList.add("rev");
         }
       } else if (ch) {
-        cell.className = "cell cap c-slate";
-        fillCap(cell, ch);
+        cell.className = `cell typed${!was.startsWith("t") && !reduced() ? " pop" : ""}`;
+        cell.textContent = ch;
         cell.setAttribute("aria-label", ch);
-        cell.removeAttribute("title");
-        if (!was.startsWith("t") && !reduced()) cell.classList.add("seat");
       } else {
-        cell.className = `cell sock${sig === "active" ? " active" : ""}`;
-        cell.replaceChildren(el("i", "stem"));
+        cell.className = `cell${sig === "active" ? " active" : ""}`;
+        cell.textContent = "";
         cell.setAttribute("aria-label", sig === "active" ? "vacío, acá va la próxima letra" : "vacío");
-        cell.removeAttribute("title");
       }
     });
   }
 }
 
+const hash = () => {
+  const h = el("span", "hash", "#");
+  h.setAttribute("aria-hidden", "true");
+  return h;
+};
+
+// Clues as shell comments: what kind of command it is, the clues unlocked so
+// far and when the next one arrives.
 function paintClues() {
-  const ol = $("clues");
+  const ul = $("clues");
   const done = over();
-  ol.closest("section").hidden = done;
-  const shown = done ? 0 : cluesVisible(game.guesses, game.answer.id);
-  if (shown > shownClues) clueSel = shown - 1; // a new clue: show it
+  $("notes").hidden = done;
+  if (done) return;
+  const shown = cluesVisible(game.guesses, game.answer.id);
   const fresh = shown > shownClues ? shown - 1 : -1;
   shownClues = shown;
-  if (clueSel < 0) clueSel = Math.max(0, shown - 1);
   const miss = misses();
-  ol.replaceChildren();
-  game.answer.clues.slice(0, 3).forEach((text, i) => {
-    const open = i < shown;
-    const li = el("li", `clue ${open ? "open" : "locked"}${i === clueSel ? " sel" : ""}${i === fresh ? " fresh" : ""}`);
-    const num = capEl("button", open ? "num c-artisan" : "num c-graphite is-absent", String(i + 1));
-    num.type = "button";
-    num.setAttribute("aria-label", open ? `Pista ${i + 1}` : `Pista ${i + 1}, bloqueada`);
-    num.setAttribute("aria-pressed", String(i === clueSel));
-    num.addEventListener("click", () => {
-      clueSel = i;
-      paintClues();
-    });
-    const body = el("div", "ctext");
-    if (open) {
-      body.append(el("p", null, text));
-    } else {
-      const line = el("div", "lockline");
-      const pips = el("span", "pips");
-      pips.setAttribute("aria-hidden", "true");
-      for (let k = 0; k < CLUE_AT[i]; k++) pips.append(el("i", k < miss ? "on" : null));
-      line.append(el("p", "lockmsg", `con ${CLUE_AT[i]} fallos`), pips);
-      body.append(el("span", "redact"), line);
-    }
-    li.append(num, body);
-    ol.append(li);
+  const line = (cls, ...content) => {
+    const li = el("li", cls);
+    const body = el("span");
+    body.append(...content);
+    li.append(hash(), body);
+    return li;
+  };
+  ul.replaceChildren();
+  const small = phone();
+  const next = shown < 3 ? `${NEXT_CLUE[shown]} con ${CLUE_AT[shown]} fallos` : "";
+  const meta = line("meta", el("b", null, game.answer.category), ` · ${game.answer.level}`);
+  if (!small) meta.lastChild.append(` · intento ${game.guesses.length + 1}/${MAX_TRIES}`);
+  else if (next) meta.lastChild.append(` · ${next.replace(" pista", "")}`);
+  ul.append(meta);
+  game.answer.clues.slice(0, shown).forEach((text, i) => {
+    // on phones the older clues fold to one line (tap to unfold) so the
+    // board keeps its size
+    const old = small && i < shown - 1;
+    const li = line(`clue${i === fresh ? " fresh" : ""}${old ? " old" : ""}`, text);
+    li.setAttribute("aria-label", `Pista ${i + 1}: ${text}`);
+    if (old) li.addEventListener("click", () => li.classList.toggle("open"));
+    ul.append(li);
   });
-  const sum = el("li", "clues-sum", `${miss} ${miss === 1 ? "fallo" : "fallos"}`);
-  sum.setAttribute("aria-hidden", "true");
-  ol.append(sum);
+  if (next && !small) {
+    const left = CLUE_AT[shown] - miss;
+    ul.append(line("lock", `${next}${left === 1 ? " · falta 1" : ""}`));
+  }
 }
 
 // Every valid command of the answer's length, narrowed only by what is being
@@ -326,7 +721,6 @@ function paintClues() {
 function chip(word, prefix) {
   const b = el("button", "wchip");
   b.type = "button";
-  b.tabIndex = -1;
   b.setAttribute("aria-label", word);
   if (prefix) b.append(el("b", null, prefix), word.slice(prefix.length));
   else b.append(word);
@@ -337,17 +731,20 @@ function chip(word, prefix) {
 function paintWords() {
   const len = answerLen();
   const pool = game.pool;
-  const prefix = game.current;
+  const prefix = over() ? "" : game.current;
   const list = prefix ? pool.filter((w) => w.startsWith(prefix)) : pool;
   $("words-title").textContent = `comandos de ${len} letras`;
   $("words-count").textContent = prefix ? `${list.length}/${pool.length}` : String(pool.length);
-  $("words-open-n").textContent = String(pool.length);
-  $("words-open").setAttribute("aria-label", `Ver los comandos de ${len} letras`);
-  $("words-open").hidden = over();
+  $("words-hint").textContent = prefix
+    ? `# los que empiezan con «${prefix}»`
+    : `# todos los válidos. tocá uno${phone() ? "" : " o usá tab"}`;
+  const open = $("words-open");
+  open.replaceChildren(icon(["M2.5 4h11M2.5 8h11M2.5 12h7"], "0 0 16 16"), el("b", null, String(pool.length)), " comandos");
+  open.setAttribute("aria-label", `Ver los ${pool.length} comandos de ${len} letras`);
   const box = $("words-list");
   box.replaceChildren();
   if (!list.length) {
-    box.append(el("p", "words-empty", `Ninguno empieza con «${prefix}».`));
+    box.append(el("p", "words-empty", `ninguno empieza con «${prefix}»`));
     return;
   }
   const frag = document.createDocumentFragment();
@@ -359,10 +756,21 @@ function paintSuggest() {
   const box = $("sug-list");
   box.replaceChildren();
   if (over() || busy) return;
-  const max = phone() ? 3 : 6;
+  const max = phone() ? 3 : 5;
   const base = comp ? comp.base : game.current;
   const items = comp ? comp.list : base ? game.pool.filter((w) => w.startsWith(base)) : [];
-  if (!items.length) return;
+  if (!base && !comp) {
+    if (!phone()) {
+      const hint = el("span", "tab-hint");
+      hint.append(el("kbd", null, "tab"), "completa");
+      box.append(hint);
+    }
+    return;
+  }
+  if (!items.length) {
+    box.append(el("span", "sug-hint", "sin coincidencias"));
+    return;
+  }
   const start = comp ? Math.max(0, Math.min(comp.idx - max + 1, items.length - max)) : 0;
   for (const w of items.slice(start, start + max)) {
     const b = el("button", `sug${comp && comp.list[comp.idx] === w ? " sel" : ""}`);
@@ -377,11 +785,10 @@ function paintSuggest() {
 }
 
 function keyButton(key, label, cls, aria) {
-  const b = el("button", `cap key ${cls}`);
+  const b = el("button", `key ${cls}`, label);
   b.type = "button";
   b.tabIndex = -1;
   b.dataset.key = key;
-  if (label) b.append(el("span", "lg", label));
   if (aria) {
     b.setAttribute("aria-label", aria);
     b.title = aria;
@@ -394,10 +801,10 @@ function buildKeyboard() {
   kb.replaceChildren();
   KEY_ROWS.forEach((keys, r) => {
     const row = el("div", `kr kr${r + 1}`);
-    if (r === 2) row.append(keyButton("enter", "enviar", "c-artisan enter", "Enviar"));
-    for (const k of keys) row.append(keyButton(k, k, "c-slate"));
+    if (r === 2) row.append(keyButton("enter", "enter", "wide enter", "Enviar"));
+    for (const k of keys) row.append(keyButton(k, k, ""));
     if (r === 2) {
-      const b = keyButton("backspace", null, "c-mod bksp", "Borrar");
+      const b = keyButton("backspace", null, "wide bksp", "Borrar");
       b.append(icon(ICON_BKSP, "0 0 24 24"));
       row.append(b);
     }
@@ -413,12 +820,7 @@ function paintKeyboard() {
     const k = b.dataset.key;
     if (k.length !== 1) continue;
     const m = state.get(k);
-    const sig = m == null ? "" : String(m);
-    if (b.dataset.sig !== sig) {
-      b.dataset.sig = sig;
-      b.className = `cap key ${m == null ? "c-slate" : COLOUR[m]}`;
-      fillCap(b, k, m);
-    }
+    b.className = `key${m == null ? "" : ` ${MARK[m]}`}`;
     const label = m == null ? k : `${k} · ${MARK_TEXT[m]}`;
     b.setAttribute("aria-label", label);
     if (m == null) b.removeAttribute("title");
@@ -426,21 +828,41 @@ function paintKeyboard() {
   }
 }
 
-function paintTmux() {
-  const s = statsNow();
-  const pct = s.played ? Math.round((s.wins * 100) / s.played) : 0;
-  const t = $("tmux-stats");
-  const sep = () => el("span", "sep", "·");
-  t.replaceChildren(
-    "racha ",
-    el("b", s.streak > 0 ? "hot" : null, String(s.streak)),
-    sep(),
-    "mejor racha ",
-    el("b", null, String(s.maxStreak)),
-    sep(),
-    "ganados ",
-    el("b", "g", `${pct}%`),
-  );
+// Tile size: as big as the width allows, and small enough on short screens
+// that a whole round (board and keyboard) fits without scrolling. On a short
+// phone the buddy first shrinks to its face.
+function fit() {
+  if (!game) return;
+  const stage = $("game");
+  const len = answerLen();
+  const G = 0.12;
+  const wide = Math.min(phone() ? 60 : 62, $("board").parentElement.clientWidth / (len + (len - 1) * G));
+  const apply = (t) => stage.style.setProperty("--t", `${Math.floor(t)}px`);
+  const squeeze = () => {
+    let t = wide;
+    apply(t);
+    if (over()) return t;
+    for (let pass = 0; pass < 2; pass++) {
+      const extra = $("keyboard").getBoundingClientRect().bottom + window.scrollY + 8 - window.innerHeight;
+      if (extra <= 1) break;
+      const boardH = $("board").getBoundingClientRect().height;
+      t = Math.max(36, Math.min(t, (boardH - extra) / (MAX_TRIES + (MAX_TRIES - 1) * G)));
+      apply(t);
+    }
+    return t;
+  };
+  setCompact(false);
+  if (squeeze() < 48 && phone() && !over()) {
+    setCompact(true);
+    squeeze();
+  }
+}
+
+function setCompact(on) {
+  if (cow.compact === on) return;
+  cow.compact = on;
+  $("talk").classList.toggle("face-only", on);
+  drawCow();
 }
 
 // ------------------------------------------------------------------ input
@@ -449,16 +871,17 @@ function toast(message) {
   const t = $("toast");
   t.textContent = message;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (t.textContent = ""), 2600);
+  toastTimer = setTimeout(() => (t.textContent = ""), 2800);
 }
 
 function wobble() {
   const row = $("board").children[game.guesses.length];
   if (!row) return;
   sound.play("reject");
-  row.classList.remove("wobble");
+  if (reduced()) return;
+  row.classList.remove("shake");
   void row.offsetWidth;
-  row.classList.add("wobble");
+  row.classList.add("shake");
 }
 
 function flashKey(key) {
@@ -479,7 +902,7 @@ function press(key) {
   if (key === "backspace") {
     if (!game.current) return;
     game.current = Array.from(game.current).slice(0, -1).join("");
-  } else if (/^[a-z0-9-]$/.test(key) && Array.from(game.current).length < len) {
+  } else if (/^[a-z0-9-]$/.test(key) && len32(game.current) < len) {
     game.current += key;
   } else {
     return;
@@ -518,25 +941,23 @@ function complete(step) {
   }
   game.current = comp.list[comp.idx];
   sound.play("tab");
-  paintPrompt();
-  paintBoard();
-  paintSuggest();
-  paintWords();
+  paintInput();
+}
+
+function reject(m) {
+  say({ mood: mood(), tone: "err", ...m });
+  wobble();
 }
 
 function submit(len) {
   const guess = game.current;
-  if (Array.from(guess).length !== len) {
-    toast(`Tiene que tener ${len} letras.`);
-    return wobble();
-  }
-  if (game.guesses.includes(guess)) {
-    toast("Ya lo probaste.");
-    return wobble();
-  }
-  if (!allowed.has(guess)) {
-    toast(`«${guess}» no está en la lista de comandos que acepta el juego.`);
-    return wobble();
+  const missing = len - len32(guess);
+  const invalid = !missing && !game.guesses.includes(guess) && !allowed.has(guess);
+  cow.notFound = invalid ? cow.notFound + 1 : 0;
+  if (missing > 0) return reject({ text: missing === 1 ? "falta 1 letra" : `faltan ${missing} letras` });
+  if (game.guesses.includes(guess)) return reject({ text: `${guess}: ya está en tu history` });
+  if (invalid) {
+    return reject({ text: cow.notFound > 1 ? `command not found · hay ${game.pool.length} que sí` : `bash: ${guess}: command not found` });
   }
   game.guesses.push(guess);
   game.current = "";
@@ -546,15 +967,18 @@ function submit(len) {
   sound.play("enter");
   const row = game.guesses.length - 1;
   paintBoard(row);
-  paintPrompt();
   paintSuggest();
+  showLine({ text: `ejecutando ${guess}...`, think: true, mood: mood() });
   const quick = reduced();
   if (!quick) for (let i = 0; i < len; i++) setTimeout(() => sound.play("flip"), i * STAGGER + FLIP / 2);
   setTimeout(
     () => {
       busy = false;
+      const before = shownClues;
       render();
-      if (over()) finish();
+      if (over()) return finish();
+      const fresh = shownClues > before ? `Pista ${shownClues}: ${game.answer.clues[shownClues - 1]}` : "";
+      say(guessLine(), { extra: fresh });
     },
     quick ? 0 : (len - 1) * STAGGER + FLIP,
   );
@@ -570,13 +994,14 @@ function finish() {
       store.set("comandle:history", history.slice(-30));
     }
   }
-  paintTmux();
+  say(endLine(), { extra: won() ? "" : `Era ${game.answer.id}.` });
   if (!won() || reduced()) return showEnd(true);
   const len = answerLen();
   const cells = $("board").children[game.guesses.length - 1].children;
   Array.from(cells).forEach((cell, i) => {
     cell.style.setProperty("--wd", `${i * WAVE_STAGGER}ms`);
-    cell.classList.add("wave");
+    cell.classList.remove("rev");
+    cell.classList.add("hop");
   });
   burst();
   sound.play("win");
@@ -584,7 +1009,7 @@ function finish() {
   setTimeout(() => {
     busy = false;
     showEnd(true);
-  }, (len - 1) * WAVE_STAGGER + WAVE * 2);
+  }, (len - 1) * WAVE_STAGGER + WAVE + 200);
 }
 
 // ------------------------------------------------------------------ end card
@@ -629,7 +1054,7 @@ function copyButton(cmd, codeNode) {
       () => {
         sound.play("key");
         b.classList.add("done");
-        label.textContent = "Copiado";
+        label.textContent = "copiado";
         clearTimeout(timer);
         timer = setTimeout(() => {
           b.classList.remove("done");
@@ -645,14 +1070,23 @@ function copyButton(cmd, codeNode) {
   return b;
 }
 
-// The command explained like a man page: header line, name, summary,
-// explanation, examples to copy and the security note.
+function codeBlock(cmd, id) {
+  const line = el("div", "code");
+  const code = codeLine(cmd, id);
+  line.append(code, copyButton(cmd, code));
+  return line;
+}
+
+// The command explained like a man page.
 function buildMan(c, n) {
-  const box = el("div", "man");
+  const box = document.createDocumentFragment();
+  const prompt = el("p", "man-prompt");
+  prompt.setAttribute("aria-hidden", "true");
+  prompt.append(el("span", "p", "$ "), "man ", el("b", null, c.id));
   const head = el("div", "man-head");
   head.setAttribute("aria-hidden", "true");
   const ref = `${c.id.toUpperCase()}(1)`;
-  head.append(el("span", null, ref), el("span", null, "Manual de comandle"), el("span", null, ref));
+  head.append(el("span", null, ref), el("span", null, "manual de comandle"), el("span", null, ref));
 
   const title = el("h2", "man-title");
   const tags = el("span", "tags");
@@ -663,18 +1097,13 @@ function buildMan(c, n) {
   ex.setAttribute("aria-label", "Ejemplos");
   for (const e of c.examples) {
     const li = el("li");
-    const line = el("div", "code");
-    const code = codeLine(e.cmd, c.id);
-    line.append(code, copyButton(e.cmd, code));
-    li.append(line, el("p", null, e.desc));
+    li.append(codeBlock(e.cmd, c.id), el("p", null, e.desc));
     ex.append(li);
   }
-  const sec = el("p", "hazard", c.security);
-  sec.setAttribute("aria-label", `Seguridad: ${c.security}`);
-
-  box.append(head, title, el("p", "summary", c.summary), el("p", "explain", c.explanation), ex, sec);
+  box.append(prompt, head, title, el("p", "summary", c.summary), el("p", "explain", c.explanation));
+  box.append(el("h3", "sec-h", "EJEMPLOS"), ex, el("h3", "sec-h warn", "SEGURIDAD"), el("p", "hazard", c.security));
   if (c.lab) {
-    const a = el("a", "lab", "Practicalo en Open Security Labs");
+    const a = el("a", "lab", "practicalo en Open Security Labs");
     a.href = c.lab;
     a.rel = "noopener";
     a.append(icon(ICON_LINK, "0 0 16 16"));
@@ -683,69 +1112,40 @@ function buildMan(c, n) {
   return box;
 }
 
-function showEnd(animate) {
-  const swap = () => buildEnd(animate);
-  if (animate && !reduced() && !stacked() && document.startViewTransition) document.startViewTransition(swap);
-  else swap();
-}
-
-function buildEnd(animate) {
+function buildResult(animate) {
   const c = game.answer;
-  const len = answerLen();
-  const end = $("end");
-  end.replaceChildren();
-  end.style.setProperty("--len", String(len));
   const win = won();
+  const res = $("result");
+  res.replaceChildren();
 
-  const hero = el("div", `hero ${win ? "won" : "lost"}`);
-  const head = el("div", "won-wrap");
-  const result = el("p", "result");
-  if (win) result.append(el("span", null, "¡Bien!"), " Lo sacaste en ", el("b", null, `${game.guesses.length}/${MAX_TRIES}`), ".");
-  else result.append(el("span", null, "Esta vez no."), " Era ", el("b", null, c.id), ".");
-  head.append(el("span", "tag", dayLabel()), result);
-  const tray = el("div", "hero-tray");
-  tray.setAttribute("aria-hidden", "true");
-  Array.from(c.id).forEach((ch, i) => {
-    const cap = capEl("span", win ? "c-mint" : "c-paper", ch, win ? CORRECT : null);
-    if (animate && !reduced()) {
-      if (win) {
-        cap.style.setProperty("--wd", `${300 + i * WAVE_STAGGER}ms`);
-        cap.classList.add("wave");
-      } else {
-        cap.style.setProperty("--d", `${350 + i * 260}ms`);
-        cap.classList.add("rev");
-      }
-    }
-    tray.append(cap);
-  });
-  hero.append(head, tray);
-
-  const band = el("div", "share-band");
+  const top = el("div", "res-top");
   const mini = el("div", "mini");
   mini.setAttribute("role", "img");
   mini.setAttribute("aria-label", `Tu resultado: ${win ? game.guesses.length : "X"}/${MAX_TRIES}`);
-  for (const g of game.guesses) {
-    for (const m of score(g, c.id)) mini.append(capEl("span", COLOUR[m], null, m));
-  }
+  for (const g of game.guesses) for (const m of score(g, c.id)) mini.append(el("i", MARK[m]));
+  const sc = el("div", "res-score");
+  const sub = el("span", null, win ? `comandle ${dayLabel()}` : "era ");
+  if (!win) sub.append(el("b", null, c.id));
+  sc.append(el("b", null, `${win ? game.guesses.length : "X"}/${MAX_TRIES}`), sub);
+  top.append(mini, sc);
+
   const share = shareText(game.day, game.guesses, c.id, game.practice);
   const actions = el("div", "actions");
-  const copy = el("button", "cap c-artisan btn");
+  const copy = el("button", "btn primary", "copiar resultado");
   copy.type = "button";
-  const copyLabel = el("span", null, "Copiar resultado");
-  copy.append(copyLabel);
-  copy.addEventListener("click", () => copyShare(share, copyLabel, band));
-  const again = el("button", "cap c-slate btn");
+  copy.addEventListener("click", () => copyShare(share, copy, res));
+  const again = el("button", "btn", game.practice ? "otra práctica" : "practicar");
   again.type = "button";
-  again.append(el("span", null, game.practice ? "Otra práctica" : "Practicar con uno al azar"));
+  again.title = "Una ronda con un comando al azar";
   again.addEventListener("click", startPractice);
   actions.append(copy, again);
-  band.append(mini, actions);
+  res.append(top, actions);
 
   if (!game.practice) {
     const count = el("p", "count");
     const time = el("time");
-    count.append("El próximo comandle sale en ", time, ".");
-    band.append(count);
+    count.append("# próximo en ", time);
+    res.append(count);
     const tick = () => {
       const left = nextDayMs(Date.now()) - Date.now();
       if (left <= 0) return location.reload();
@@ -758,35 +1158,37 @@ function buildEnd(animate) {
     clearInterval(countdownTimer);
     countdownTimer = setInterval(tick, 1000);
   }
-
-  const INSTALL = "go install github.com/ValentinTorassa/comandle@latest";
-  const install = el("div", "install code");
-  const code = el("code");
-  code.append(el("span", "p", "$ "), INSTALL);
-  install.append(code, copyButton(INSTALL, code));
-  install.title = "También se juega en la terminal";
-
-  end.append(hero, band, buildMan(c), install);
-  end.hidden = false;
-  $("layout").classList.add("over");
-  closeDrawer();
-  render();
-  if (stacked()) end.scrollIntoView({ behavior: reduced() || !animate ? "auto" : "smooth", block: "start" });
+  if (animate && !reduced()) res.classList.add("in");
 }
 
-function copyShare(text, label, band) {
+function showEnd(animate) {
+  const c = game.answer;
+  buildResult(animate);
+  const end = $("end");
+  end.replaceChildren(buildMan(c));
+  const INSTALL = "go install github.com/ValentinTorassa/comandle@latest";
+  end.append(el("h3", "sec-h", "EN TU TERMINAL"), codeBlock(INSTALL, "comandle"));
+  end.hidden = false;
+  $("result").hidden = false;
+  $("game").classList.add("over");
+  closeDrawer();
+  render();
+  if (!animate) say(endLine(), { speak: false, type: false });
+}
+
+function copyShare(text, button, box) {
   writeClipboard(text).then(
     () => {
       sound.play("key");
-      label.textContent = "Copiado";
-      setTimeout(() => (label.textContent = "Copiar resultado"), 1800);
+      button.textContent = "copiado";
+      setTimeout(() => (button.textContent = "copiar resultado"), 1800);
     },
     () => {
       // Show it so it can be copied by hand.
-      let pre = band.querySelector(".share-text");
+      let pre = box.querySelector(".share-text");
       if (!pre) {
         pre = el("pre", "share-text", text);
-        band.append(pre);
+        box.append(pre);
       }
       selectText(pre);
       toast("Seleccioné el resultado: copialo con Ctrl+C.");
@@ -796,7 +1198,7 @@ function copyShare(text, label, band) {
 
 // ------------------------------------------------------------------ win burst
 
-// A short shower of tiny keycaps over the board.
+// A short shower of ASCII confetti over the board.
 function burst() {
   if (reduced()) return;
   const canvas = el("canvas", "burst");
@@ -810,49 +1212,40 @@ function burst() {
   canvas.width = W * dpr;
   canvas.height = H * dpr;
   ctx.scale(dpr, dpr);
-  const r = $("board").getBoundingClientRect();
-  const colours = [
-    ["#50fa7b", "#1c9443"],
-    ["#f1fa8c", "#959c42"],
-    ["#ff79c6", "#8a3f78"],
-    ["#bd93f9", "#5d3f96"],
-    ["#8be9fd", "#3f8597"],
-  ];
-  const parts = Array.from({ length: phone() ? 26 : 44 }, () => ({
-    x: r.left + r.width * (0.2 + Math.random() * 0.6),
-    y: r.top + r.height * 0.3,
-    vx: (Math.random() - 0.5) * 9,
-    vy: -6 - Math.random() * 8,
-    s: 7 + Math.random() * 8,
-    a: Math.random() * Math.PI,
-    va: (Math.random() - 0.5) * 0.3,
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const r = $("board").children[game.guesses.length - 1].getBoundingClientRect();
+  const glyphs = ["*", "+", "o", "$", "#", "~", "0", "1", "^", "/"];
+  const colours = ["#50fa7b", "#f1fa8c", "#ff79c6", "#bd93f9", "#8be9fd", "#ffb86c"];
+  const parts = Array.from({ length: phone() ? 26 : 40 }, () => ({
+    x: r.left + r.width * (0.1 + Math.random() * 0.8),
+    y: r.top + r.height * 0.4,
+    vx: (Math.random() - 0.5) * 8,
+    vy: -5 - Math.random() * 8,
+    s: 12 + Math.random() * 10,
+    a: (Math.random() - 0.5) * 0.6,
+    va: (Math.random() - 0.5) * 0.16,
+    g: glyphs[Math.floor(Math.random() * glyphs.length)],
     c: colours[Math.floor(Math.random() * colours.length)],
   }));
-  const rect = (x, y, w, h, rad) => {
-    ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(x, y, w, h, rad);
-    else ctx.rect(x, y, w, h);
-    ctx.fill();
-  };
   const t0 = performance.now();
   const D = 1300;
   const frame = (t) => {
     const k = (t - t0) / D;
     ctx.clearRect(0, 0, W, H);
     if (k >= 1) return canvas.remove();
-    ctx.globalAlpha = k < 0.65 ? 1 : 1 - (k - 0.65) / 0.35;
+    ctx.globalAlpha = k < 0.6 ? 1 : 1 - (k - 0.6) / 0.4;
     for (const p of parts) {
-      p.vy += 0.38;
+      p.vy += 0.34;
       p.x += p.vx;
       p.y += p.vy;
       p.a += p.va;
       ctx.save();
       ctx.translate(p.x, p.y);
       ctx.rotate(p.a);
-      ctx.fillStyle = p.c[1];
-      rect(-p.s / 2, -p.s / 2 + p.s * 0.2, p.s, p.s, p.s * 0.22);
-      ctx.fillStyle = p.c[0];
-      rect(-p.s / 2 + 1, -p.s / 2, p.s - 2, p.s * 0.8, p.s * 0.2);
+      ctx.fillStyle = p.c;
+      ctx.font = `700 ${p.s}px "Martian Mono", monospace`;
+      ctx.fillText(p.g, 0, 0);
       ctx.restore();
     }
     requestAnimationFrame(frame);
@@ -937,26 +1330,54 @@ const sound = {
 function paintSound() {
   const b = $("toggle-sound");
   b.setAttribute("aria-pressed", String(sound.on));
-  b.title = sound.on ? "Sonido de teclas: activado" : "Sonido de teclas: apagado";
+  b.replaceChildren("sonido: ", el("b", null, sound.on ? "on" : "off"));
+  b.setAttribute("aria-label", "Sonido de teclas");
 }
 
-// ------------------------------------------------------------------ drawer (phones)
+// ------------------------------------------------------------------ sheets
 
-const drawerOpen = () => $("words").classList.contains("open");
+// The command list and the buddy picker share one scrim; only one is open.
+const SHEET_TRIGGER = { words: "words-open", buddies: "buddy-open" };
+let sheetOpen = null;
+let sheetByKey = false; // opened from the keyboard: focus goes back on close
+const drawerOpen = () => sheetOpen === "words";
 
-function openDrawer() {
-  if (!game || over()) return;
-  $("words").classList.add("open");
+function openSheet(id, byKey) {
+  closeSheet();
+  sheetOpen = id;
+  sheetByKey = !!byKey;
+  $(id).classList.add("open");
   $("scrim").hidden = false;
-  $("words-open").setAttribute("aria-expanded", "true");
+  $(SHEET_TRIGGER[id]).setAttribute("aria-expanded", "true");
+}
+
+function closeSheet() {
+  if (!sheetOpen) return;
+  const id = sheetOpen;
+  const had = $(id).contains(document.activeElement);
+  sheetOpen = null;
+  $(id).classList.remove("open");
+  $("scrim").hidden = true;
+  const trigger = $(SHEET_TRIGGER[id]);
+  trigger.setAttribute("aria-expanded", "false");
+  if (!had) return;
+  if (sheetByKey && trigger.offsetParent) trigger.focus({ preventScroll: true });
+  else document.activeElement.blur();
+}
+const closeDrawer = closeSheet;
+
+function openDrawer(byKey) {
+  if (!game || over()) return;
+  paintWords();
+  openSheet("words", byKey);
   $("words-close").focus({ preventScroll: true });
 }
 
-function closeDrawer() {
-  if (!drawerOpen()) return;
-  $("words").classList.remove("open");
-  $("scrim").hidden = true;
-  $("words-open").setAttribute("aria-expanded", "false");
+function openBuddies(byKey) {
+  paintBuddyControls();
+  paintBuddyPreviews();
+  openSheet("buddies", byKey);
+  $("bud-grid").querySelector("input:checked")?.focus({ preventScroll: true });
 }
 
 // ------------------------------------------------------------------ dialogs
@@ -970,9 +1391,9 @@ function buildTutorial() {
     ["o", ABSENT],
   ];
   sample.forEach(([ch, m], i) => {
-    const cap = capEl("span", COLOUR[m], ch, m);
-    cap.style.setProperty("--d", `${i * 160}ms`);
-    row.append(cap);
+    const cell = el("span", `cell ${MARK[m]}`, ch);
+    cell.style.setProperty("--d", `${200 + i * 160}ms`);
+    row.append(cell);
   });
 }
 
@@ -1001,14 +1422,14 @@ function renderStats() {
   hist.replaceChildren();
   const last = store.get("comandle:history", []);
   const recent = Array.isArray(last) ? last.slice(-10) : [];
-  if (!recent.length) hist.append(el("span", "empty", "Todavía no hay rondas."));
+  if (!recent.length) hist.append(el("span", "empty", "todavía no hay rondas"));
   for (const h of recent) {
-    const cap = h.won ? capEl("span", "c-mint", String(h.tries)) : capEl("span", "c-graphite is-absent", "x");
+    const sq = el("i", h.won ? null : "x", h.won ? String(h.tries) : "x");
     const label = `#${h.day}: ${h.won ? `${h.tries}/${MAX_TRIES}` : `X/${MAX_TRIES}`}`;
-    cap.title = label;
-    cap.setAttribute("role", "img");
-    cap.setAttribute("aria-label", label);
-    hist.append(cap);
+    sq.title = label;
+    sq.setAttribute("role", "img");
+    sq.setAttribute("aria-label", label);
+    hist.append(sq);
   }
 
   const dist = $("stats-dist");
@@ -1032,22 +1453,24 @@ function renderArchive(n) {
   const body = $("archive-body");
   body.replaceChildren();
   if (!commands.length) {
-    body.append(el("p", "arch-note", "No pude cargar los comandos. Recargá la página."));
+    body.append(el("p", "arch-note", "# no pude cargar los comandos. recargá la página"));
     return;
   }
   if (n) {
     const back = el("button", "back");
     back.type = "button";
-    back.append(icon(ICON_BACK), "Volver");
+    back.append(icon(ICON_BACK), "volver");
     back.addEventListener("click", () => renderArchive());
-    body.append(back, buildMan(daily(commands, n), n));
+    const man = el("div", "man");
+    man.append(buildMan(daily(commands, n), n));
+    body.append(back, man);
     back.focus({ preventScroll: true });
     $("archive").scrollTop = 0;
     return;
   }
   const today = dayNumber(Date.now());
   if (today <= 1) {
-    body.append(el("p", "arch-note", "Todavía no hay: el #1 es hoy."));
+    body.append(el("p", "arch-note", "# todavía no hay: el #1 es hoy"));
     return;
   }
   const list = el("ul", "arch-list");
@@ -1067,11 +1490,11 @@ function renderArchive(n) {
 // ------------------------------------------------------------------ wiring
 
 function wire() {
-  // A mouse click on the header or game controls should not take focus away
-  // from typing (tab completes while the page has focus). Keyboard users
-  // still reach every button with tab from the address bar or a dialog.
+  // A mouse click on the page controls should not take focus away from
+  // typing (tab completes while the page has focus). Keyboard users still
+  // reach every button with tab.
   document.addEventListener("mousedown", (e) => {
-    if (e.target instanceof Element && e.target.closest(".top button, .game button")) e.preventDefault();
+    if (e.target instanceof Element && e.target.closest(".top button, .stage button, .sheet button, .foot button")) e.preventDefault();
   });
   $("keyboard").addEventListener("click", (e) => {
     const key = e.target.closest("button")?.dataset.key;
@@ -1079,7 +1502,8 @@ function wire() {
   });
   document.addEventListener("keydown", (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey || document.querySelector("dialog[open]")) return;
-    if (e.key === "Escape" && drawerOpen()) return closeDrawer();
+    if (e.key === "Escape" && sheetOpen) return closeSheet();
+    if (sheetOpen === "buddies" && e.target instanceof Element && e.target.closest("#buddies")) return;
     if (e.key === "?") {
       e.preventDefault();
       return openHelp();
@@ -1089,7 +1513,7 @@ function wire() {
     const step =
       e.key === "Tab" ? (e.shiftKey ? -1 : 1) : e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : e.key === "ArrowUp" || e.key === "ArrowLeft" ? -1 : 0;
     if (step) {
-      if (!onControl && !drawerOpen() && canComplete()) {
+      if (!onControl && canComplete()) {
         e.preventDefault();
         complete(step);
       }
@@ -1097,11 +1521,13 @@ function wire() {
     }
     const key = e.key === "Enter" ? "enter" : e.key === "Backspace" ? "backspace" : e.key.length === 1 ? e.key.toLowerCase() : "";
     if (!(key === "enter" || key === "backspace" || /^[a-z0-9-]$/.test(key))) return;
-    if (!playing()) return; // let a focused button handle Enter after the round
+    if (key === "enter" && onControl) return; // a focused button handles its own Enter
+    if (!playing()) return;
     e.preventDefault();
     flashKey(key);
     press(key);
   });
+  $("cow").addEventListener("click", poke);
   $("open-help").addEventListener("click", openHelp);
   $("open-stats").addEventListener("click", () => {
     closeDrawer();
@@ -1114,31 +1540,55 @@ function wire() {
     $("archive").showModal();
   });
   $("toggle-sound").addEventListener("click", () => sound.toggle());
-  $("words-open").addEventListener("click", openDrawer);
-  $("words-close").addEventListener("click", closeDrawer);
-  $("scrim").addEventListener("click", closeDrawer);
+  $("words-open").addEventListener("click", (e) => (drawerOpen() ? closeSheet() : openDrawer(e.detail === 0)));
+  $("words-close").addEventListener("click", closeSheet);
+  $("buddy-open").addEventListener("click", (e) => (sheetOpen === "buddies" ? closeSheet() : openBuddies(e.detail === 0)));
+  $("buddies-close").addEventListener("click", closeSheet);
+  $("help-buddy").addEventListener("click", (e) => {
+    $("help").close();
+    openBuddies(e.detail === 0);
+  });
+  $("scrim").addEventListener("click", closeSheet);
+  let raf = 0;
   window.addEventListener("resize", () => {
-    if (!phone()) closeDrawer();
-    if (game && !over()) paintSuggest();
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => {
+      cow.charW = 0;
+      drawCow();
+      if (game) {
+        paintClues();
+        paintSuggest();
+        fit();
+      }
+    });
   });
 }
 
 async function main() {
   buildKeyboard();
+  buildBuddyPicker();
+  paintBuddyControls();
   buildTutorial();
   paintSound();
-  paintTmux();
   wire();
+  showLine({ text: "cargando...", think: true });
+  scheduleBlink();
   try {
     await load();
   } catch {
-    const meta = $("meta");
-    meta.textContent = "No pude cargar los comandos. Recargá la página.";
-    meta.classList.add("err");
+    say({ text: "bash: commands.json: no such file", mood: "dead", tone: "dead" }, { extra: "No pude cargar los comandos. Recargá la página." });
     $("game").classList.add("failed");
+    const li = el("li", "meta");
+    li.append(hash(), el("span", null, "no pude cargar los comandos. recargá la página"));
+    $("clues").replaceChildren(li);
     return;
   }
   startDaily();
+  document.fonts?.ready.then(() => {
+    cow.charW = 0;
+    drawCow();
+    fit();
+  });
   if (!store.get("comandle:seen", false)) {
     store.set("comandle:seen", true);
     openHelp();
