@@ -64,23 +64,20 @@ func TestDailyRoundEndToEnd(t *testing.T) {
 	}
 }
 
-func TestQuestionMarkListsCandidates(t *testing.T) {
+func TestQuestionMarkListsAllWords(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	t.Setenv("NO_COLOR", "1")
 	var out bytes.Buffer
 	run([]string{"practica", "nmap"}, strings.NewReader("?\nkill\nping\n?\nnmap\n"), &out, launchDay)
 	got := out.String()
-	if !strings.Contains(got, "Comandos válidos con esta cantidad de letras") {
-		t.Errorf("first ? should list every 4-letter command:\n%s", got)
+	first := strings.Index(got, "comandos de 4 letras:")
+	last := strings.LastIndex(got, "comandos de 4 letras:")
+	if first < 0 || first == last {
+		t.Fatalf("? should print the list both times:\n%s", got)
 	}
-	after := got[strings.LastIndex(got, "Comandos que encajan"):]
-	if !strings.Contains(after, "nmap") {
-		t.Errorf("the answer must stay among the candidates:\n%s", after)
-	}
-	for _, gone := range []string{"kill", "ping", "grep", "find"} {
-		if strings.Contains(strings.SplitN(after, "\n", 3)[1], gone) {
-			t.Errorf("%s no longer fits but is listed:\n%s", gone, after)
-		}
+	header := func(i int) string { return strings.SplitN(got[i:], "\n", 2)[0] }
+	if header(first) != header(last) {
+		t.Errorf("the list must not narrow with guesses: %q vs %q", header(first), header(last))
 	}
 	if !strings.Contains(got, "comandle (práctica) 3/6") {
 		t.Errorf("? must not count as a try:\n%s", got)

@@ -140,7 +140,7 @@ func TestRound(t *testing.T) {
 	}
 }
 
-func TestCandidates(t *testing.T) {
+func TestWordsIgnoresFeedback(t *testing.T) {
 	allowed := "chown\nmount\ncrond\nchmod\nchgrp\nchsh\n"
 	b, err := Load([]byte(fixtureCommands), []byte(allowed))
 	if err != nil {
@@ -148,14 +148,13 @@ func TestCandidates(t *testing.T) {
 	}
 	ans, _ := b.Get("chmod")
 	r := NewRound(b, ans)
-	all := r.Candidates()
-	if !slices.Equal(all, []string{"chgrp", "chmod", "chown", "crond", "mount"}) {
-		t.Fatalf("before any guess every 5-letter word fits, got %v", all)
+	want := []string{"chgrp", "chmod", "chown", "crond", "mount"}
+	if got := r.Words(); !slices.Equal(got, want) {
+		t.Fatalf("Words() = %v, want %v", got, want)
 	}
-	r.Try("chown") // c h correct, o present, w n absent
-	got := r.Candidates()
-	if !slices.Equal(got, []string{"chmod"}) {
-		t.Errorf("after chown: %v, want [chmod]", got)
+	r.Try("chown")
+	if got := r.Words(); !slices.Equal(got, want) {
+		t.Errorf("the list must not narrow after a guess: %v", got)
 	}
 }
 

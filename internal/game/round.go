@@ -3,7 +3,6 @@ package game
 import (
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 )
@@ -157,29 +156,9 @@ func (r *Round) LetterState() map[rune]Mark {
 	return state
 }
 
-// Candidates are the valid words that still fit everything the player has
-// seen: a word stays only if every past guess, scored against it, gives the
-// exact marks that guess got against the answer. The answer is always among
-// them; nothing marks which one it is.
-func (r *Round) Candidates() []string {
-	n := len([]rune(r.Answer.ID))
-	var out []string
-	for _, w := range r.book.Words(n) {
-		if r.fits(w) {
-			out = append(out, w)
-		}
-	}
-	return out
-}
-
-func (r *Round) fits(w string) bool {
-	for i, g := range r.Guesses {
-		if !slices.Equal(Score(g, w), r.Marks[i]) {
-			return false
-		}
-	}
-	return true
-}
+// Words lists every valid guess with the answer's length. It is a reference
+// list, not a hint: it does not narrow with the feedback from past guesses.
+func (r *Round) Words() []string { return r.book.Words(len([]rune(r.Answer.ID))) }
 
 // Share is the spoiler-free result to paste on social media.
 func (r *Round) Share(day int, practice bool) string {

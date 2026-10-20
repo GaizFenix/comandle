@@ -95,7 +95,7 @@ func (u *UI) Header(title string, answer *game.Command) {
 		u.paint(comment, "categoría:"), u.bold(purple, answer.Category),
 		u.paint(comment, "letras:"), u.bold(cyan, fmt.Sprint(n)))
 	u.printf("  %s\n", u.blanks(n))
-	u.printf("  %s\n", u.paint(comment, "escribí ? para ver los comandos posibles"))
+	u.printf("  %s\n", u.paint(comment, "? lista los comandos válidos"))
 	if !u.color {
 		u.printf("  %s\n", "[x] letra en su lugar   (x) está en otra posición   x no está")
 	}
@@ -163,14 +163,14 @@ func (u *UI) Clue(n int, text string) {
 	u.printf("  %s %s\n", u.bold(orange, fmt.Sprintf("pista %d:", n)), u.wrap(text, 4))
 }
 
-// Candidates lists the commands that still fit what the player knows.
-func (u *UI) Candidates(words []string, guesses int) {
-	what := "Comandos válidos con esta cantidad de letras"
-	if guesses > 0 {
-		what = "Comandos que encajan con lo que ya sabés"
+// Words lists every valid command with the answer's length.
+func (u *UI) Words(words []string) {
+	n := 0
+	if len(words) > 0 {
+		n = utf8.RuneCountInString(words[0])
 	}
-	u.printf("  %s %s\n", u.bold(cyan, fmt.Sprintf("%d posibles.", len(words))), u.paint(comment, what+":"))
-	const show = 60
+	u.printf("  %s\n", u.bold(cyan, fmt.Sprintf("%d comandos de %d letras:", len(words), n)))
+	const show = 120
 	line := ""
 	for i, w := range words {
 		if i == show {
@@ -190,7 +190,7 @@ func (u *UI) Candidates(words []string, guesses int) {
 		u.printf("  %s\n", u.paint(fg, line))
 	}
 	if len(words) > show {
-		u.printf("  %s\n", u.paint(comment, fmt.Sprintf("y %d más; probá uno y la lista se achica.", len(words)-show)))
+		u.printf("  %s\n", u.paint(comment, fmt.Sprintf("y %d más.", len(words)-show)))
 	}
 }
 
