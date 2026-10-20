@@ -19,7 +19,8 @@ cuenta de seguridad.
 - Ves la categoría desde el principio (archivos, redes, permisos...). Con dos
   intentos fallidos se destapa una pista, con cuatro otra y con cinco la última.
 - Solo valen nombres de comandos reales: la lista está en
-  [`data/allowed.txt`](data/allowed.txt).
+  [`data/allowed.txt`](data/allowed.txt). Si no se te ocurre ninguno, escribí
+  `?` y comandle te muestra los que todavía encajan con lo que sabés.
 - Al final copiás el resultado para compartirlo sin spoilers:
 
 ```

@@ -97,8 +97,10 @@ func help(out io.Writer) {
 Cómo se juega: escribís un comando con la misma cantidad de letras. Cada letra
 queda verde si está en su lugar, amarilla si está en otra posición y gris si no
 está. Ves la categoría desde el principio y se destapan pistas a medida que
-fallás. El comando cambia a medianoche (hora de Argentina) y es el mismo para
-todos. Sin colores: [x] en su lugar, (x) en otra posición.
+fallás. Si no se te ocurre ninguno, escribí ? y te muestra los comandos que
+todavía encajan con lo que sabés. El comando cambia a medianoche (hora de
+Argentina) y es el mismo para todos. Sin colores: [x] en su lugar, (x) en otra
+posición.
 
 Todo queda en tu máquina: comandle no se conecta a internet.
 `)
@@ -193,6 +195,10 @@ func play(book *game.Book, u *ui.UI, in io.Reader, title string, answer *game.Co
 		}
 		if guess == "salir" || guess == "exit" {
 			return r, false
+		}
+		if guess == "?" || guess == "posibles" {
+			u.Candidates(r.Candidates(), len(r.Guesses))
+			continue
 		}
 		marks, err := r.Try(guess)
 		switch {

@@ -135,6 +135,18 @@ func (b *Book) Get(id string) (*Command, bool) {
 // Valid reports whether a word may be played as a guess.
 func (b *Book) Valid(word string) bool { return b.allowed[word] }
 
+// Words returns every valid guess with n letters, sorted.
+func (b *Book) Words(n int) []string {
+	var out []string
+	for w := range b.allowed {
+		if len([]rune(w)) == n {
+			out = append(out, w)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
 // Daily returns the answer for day n (1-based). The file order is the
 // calendar: new commands are appended, so past and present days never change.
 // Once every entry has been used, the days cycle through the list in a fixed

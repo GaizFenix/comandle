@@ -64,6 +64,29 @@ func TestDailyRoundEndToEnd(t *testing.T) {
 	}
 }
 
+func TestQuestionMarkListsCandidates(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	t.Setenv("NO_COLOR", "1")
+	var out bytes.Buffer
+	run([]string{"practica", "nmap"}, strings.NewReader("?\nkill\nping\n?\nnmap\n"), &out, launchDay)
+	got := out.String()
+	if !strings.Contains(got, "Comandos válidos con esta cantidad de letras") {
+		t.Errorf("first ? should list every 4-letter command:\n%s", got)
+	}
+	after := got[strings.LastIndex(got, "Comandos que encajan"):]
+	if !strings.Contains(after, "nmap") {
+		t.Errorf("the answer must stay among the candidates:\n%s", after)
+	}
+	for _, gone := range []string{"kill", "ping", "grep", "find"} {
+		if strings.Contains(strings.SplitN(after, "\n", 3)[1], gone) {
+			t.Errorf("%s no longer fits but is listed:\n%s", gone, after)
+		}
+	}
+	if !strings.Contains(got, "comandle (práctica) 3/6") {
+		t.Errorf("? must not count as a try:\n%s", got)
+	}
+}
+
 func TestQuitDoesNotRecord(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	t.Setenv("NO_COLOR", "1")

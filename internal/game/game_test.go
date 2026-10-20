@@ -140,6 +140,25 @@ func TestRound(t *testing.T) {
 	}
 }
 
+func TestCandidates(t *testing.T) {
+	allowed := "chown\nmount\ncrond\nchmod\nchgrp\nchsh\n"
+	b, err := Load([]byte(fixtureCommands), []byte(allowed))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ans, _ := b.Get("chmod")
+	r := NewRound(b, ans)
+	all := r.Candidates()
+	if !slices.Equal(all, []string{"chgrp", "chmod", "chown", "crond", "mount"}) {
+		t.Fatalf("before any guess every 5-letter word fits, got %v", all)
+	}
+	r.Try("chown") // c h correct, o present, w n absent
+	got := r.Candidates()
+	if !slices.Equal(got, []string{"chmod"}) {
+		t.Errorf("after chown: %v, want [chmod]", got)
+	}
+}
+
 func TestLostRoundShowsAllClues(t *testing.T) {
 	b, err := Load([]byte(fixtureCommands), []byte("aaaaa\nbbbbb\nccccc\nddddd\neeeee\nfffff\n"))
 	if err != nil {
