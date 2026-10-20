@@ -126,3 +126,21 @@ export function recordStats(stats, day, won, tries) {
   s.lastWon = won;
   return s;
 }
+
+/**
+ * Words still possible after these guesses: same length as the answer and,
+ * for every guess g, score(g, w) is exactly the marks g got against the
+ * answer. Mirrors game.Candidates in Go.
+ */
+export function candidates(words, guesses, answerId) {
+  const len = Array.from(answerId).length;
+  const want = guesses.map((g) => score(g, answerId));
+  return words.filter(
+    (w) =>
+      Array.from(w).length === len &&
+      guesses.every((g, i) => {
+        const got = score(g, w);
+        return got.length === want[i].length && got.every((m, j) => m === want[i][j]);
+      }),
+  );
+}
