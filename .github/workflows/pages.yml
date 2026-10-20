@@ -25,7 +25,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Web logic tests (parity with the Go engine)
-        run: node --test web/
+        run: node --test web/logic.test.mjs
       - name: Assemble the site
         run: |
           mkdir _site

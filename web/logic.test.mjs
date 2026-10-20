@@ -1,4 +1,4 @@
-// Run with: node --test web/
+// Run with: node --test web/logic.test.mjs
 // These cases mirror internal/game/game_test.go, so the web and the terminal
 // agree on scoring, the day number and the daily answer.
 import { test } from "node:test";
