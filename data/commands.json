@@ -1,0 +1,1233 @@
+[
+  {
+    "id": "grep",
+    "category": "texto",
+    "level": "básico",
+    "clues": [
+      "Busca líneas que coinciden con un patrón, en archivos o en la salida de otro comando.",
+      "Con -r recorre directorios enteros, con -i ignora mayúsculas y con -v invierte la búsqueda.",
+      "Su nombre sale de «global regular expression print», un comando del editor ed."
+    ],
+    "summary": "Busca texto que coincide con un patrón en archivos o en la salida de otro comando.",
+    "explanation": "grep lee línea por línea y muestra las que coinciden con un patrón, que puede ser texto fijo o una expresión regular. Lo usás para revisar logs, encontrar una opción en archivos de configuración o filtrar la salida de otro comando con un pipe. Por defecto el patrón es una expresión regular básica: con -E usás expresiones extendidas y con -F lo tomás como texto literal.",
+    "examples": [
+      {
+        "cmd": "grep -rn \"TODO\" ~/proyecto",
+        "desc": "Busca TODO en todos los archivos del proyecto y muestra archivo y número de línea."
+      },
+      {
+        "cmd": "grep -i \"error\" app.log",
+        "desc": "Muestra las líneas que contienen error, sin importar mayúsculas."
+      },
+      {
+        "cmd": "sudo grep -c \"Failed password\" /var/log/auth.log",
+        "desc": "Cuenta los intentos fallidos de login por SSH, en sistemas que guardan auth.log."
+      }
+    ],
+    "security": "Sirve para auditar, por ejemplo buscando contraseñas en texto plano o IPs sospechosas en un log, pero que grep no encuentre nada solo prueba que nada coincide con tu patrón, no que no haya secretos.",
+    "lab": "https://securitylabs.valentorassa.com/labs/linux-real/encontrar-archivos-y-texto/"
+  },
+  {
+    "id": "chmod",
+    "category": "permisos",
+    "level": "básico",
+    "clues": [
+      "Decide quién puede leer, escribir o ejecutar un archivo.",
+      "Acepta modos en octal, como 755 o 600.",
+      "Su nombre viene de «change mode»."
+    ],
+    "summary": "Cambia los permisos de archivos y directorios.",
+    "explanation": "Cada archivo tiene permisos de lectura (r), escritura (w) y ejecución (x) para tres grupos: el dueño, el grupo y el resto. chmod los cambia en modo octal, como 640, o simbólico, como u+x u o-w. En un directorio, x significa poder entrar y r poder listar lo que tiene adentro.",
+    "examples": [
+      {
+        "cmd": "chmod 600 ~/.ssh/id_ed25519",
+        "desc": "Deja la clave privada legible y editable solo por vos."
+      },
+      {
+        "cmd": "chmod u+x script.sh",
+        "desc": "Le da permiso de ejecución al dueño del script."
+      },
+      {
+        "cmd": "chmod o-w informe.txt",
+        "desc": "Le saca el permiso de escritura al resto de los usuarios."
+      }
+    ],
+    "security": "chmod 777 no arregla un problema de permisos: deja el archivo escribible por cualquier usuario o proceso del equipo, así que buscá el permiso mínimo que de verdad necesita.",
+    "lab": "https://securitylabs.valentorassa.com/labs/ciberseguridad/por-que-chmod-777/"
+  },
+  {
+    "id": "ping",
+    "category": "redes",
+    "level": "básico",
+    "clues": [
+      "Es lo primero que probás para saber si otro equipo responde por la red.",
+      "Envía paquetes ICMP echo request y mide cuánto tarda cada respuesta.",
+      "Su nombre imita el sonido de un sonar."
+    ],
+    "summary": "Comprueba si un host responde y cuánto tarda la respuesta.",
+    "explanation": "ping manda paquetes ICMP echo request a un host y mide cuánto tarda en volver cada respuesta. Te sirve para ver si hay conectividad básica, cuánta latencia hay y si se pierden paquetes. En Linux sigue hasta que lo cortás con Ctrl+C, salvo que le indiques cuántos paquetes mandar con -c.",
+    "examples": [
+      {
+        "cmd": "ping -c 4 example.com",
+        "desc": "Manda cuatro paquetes y muestra la latencia y la pérdida."
+      },
+      {
+        "cmd": "ping -c 3 192.0.2.10",
+        "desc": "Prueba si responde un equipo por su IP, sin pasar por DNS."
+      },
+      {
+        "cmd": "ping -6 -c 3 example.com",
+        "desc": "Prueba la conectividad por IPv6."
+      }
+    ],
+    "security": "Que un host no responda al ping no significa que esté apagado ni que no tenga servicios expuestos, porque muchos firewalls bloquean ICMP y dejan pasar el resto."
+  },
+  {
+    "id": "find",
+    "category": "archivos",
+    "level": "básico",
+    "clues": [
+      "Recorre un árbol de directorios buscando archivos que cumplan condiciones.",
+      "Filtra por nombre, tipo, tamaño, fecha o permisos, y puede ejecutar acciones con -exec.",
+      "En inglés, su nombre es el verbo «encontrar»."
+    ],
+    "summary": "Busca archivos y directorios por nombre, tipo, tamaño, fecha o permisos.",
+    "explanation": "find recorre un directorio y todo lo que tiene adentro, y evalúa cada archivo contra las condiciones que le pasás. Podés combinar filtros como -name, -type, -size o -mtime y actuar sobre los resultados con -exec. A diferencia de locate, no usa una base de datos: mira el disco en el momento.",
+    "examples": [
+      {
+        "cmd": "find . -name \"*.log\"",
+        "desc": "Busca archivos .log desde el directorio actual."
+      },
+      {
+        "cmd": "sudo find /var/log -type f -size +100M",
+        "desc": "Encuentra archivos de más de 100 MB en /var/log."
+      },
+      {
+        "cmd": "find ~ -type f -mtime -1",
+        "desc": "Lista los archivos de tu home modificados en las últimas 24 horas."
+      }
+    ],
+    "security": "Con find / -perm -4000 -type f 2>/dev/null listás los binarios SUID, un chequeo clásico de auditoría porque un SUID que no debería estar ahí puede servir para escalar privilegios.",
+    "lab": "https://securitylabs.valentorassa.com/labs/linux-real/find-a-fondo/"
+  },
+  {
+    "id": "kill",
+    "category": "procesos",
+    "level": "básico",
+    "clues": [
+      "Le manda una señal a un proceso identificado por su PID.",
+      "Sin opciones envía SIGTERM, la señal 15; con -9 fuerza la terminación.",
+      "Su nombre en inglés significa «matar»."
+    ],
+    "summary": "Envía una señal a un proceso, normalmente para terminarlo.",
+    "explanation": "kill no solo termina procesos: envía señales, y terminar es el uso más común. Por defecto manda SIGTERM, que le pide al proceso que cierre en orden; la señal 9 (SIGKILL) lo corta en el acto, sin dejarle guardar datos ni cerrar conexiones. Con kill -l ves la lista de señales disponibles.",
+    "examples": [
+      {
+        "cmd": "kill 4321",
+        "desc": "Le pide al proceso 4321 que termine en orden (SIGTERM)."
+      },
+      {
+        "cmd": "kill -HUP 4321",
+        "desc": "Le manda SIGHUP; muchos servicios lo usan para recargar su configuración."
+      },
+      {
+        "cmd": "kill -9 4321",
+        "desc": "Último recurso: corta el proceso sin dejarlo cerrar en orden."
+      }
+    ],
+    "security": "Usá kill -9 solo como último recurso, porque un proceso cortado sin limpiar puede dejar archivos de lock, temporales con datos sensibles o transacciones a medias."
+  },
+  {
+    "id": "whoami",
+    "category": "sistema",
+    "level": "básico",
+    "clues": [
+      "Responde una pregunta simple: con qué usuario estás trabajando.",
+      "Muestra el nombre del usuario efectivo, lo mismo que id -un.",
+      "Su nombre es una pregunta en inglés escrita como una sola palabra."
+    ],
+    "summary": "Muestra el nombre del usuario con el que estás ejecutando comandos.",
+    "explanation": "whoami imprime el nombre del usuario efectivo de tu sesión, es decir, con qué permisos se está ejecutando lo que escribís. Es útil después de usar sudo o su, o al entrar a un contenedor, cuando no tenés claro quién sos. Si necesitás más detalle, como el UID o los grupos, usá id.",
+    "examples": [
+      {
+        "cmd": "whoami",
+        "desc": "Muestra tu usuario actual."
+      },
+      {
+        "cmd": "sudo whoami",
+        "desc": "Muestra root, porque sudo ejecuta el comando como ese usuario."
+      },
+      {
+        "cmd": "sudo -u www-data whoami",
+        "desc": "Confirma con qué usuario corre un comando lanzado como www-data."
+      }
+    ],
+    "security": "Es de lo primero que ejecuta alguien que entra a un sistema para saber qué privilegios tiene, así que verlo en los logs ejecutado por el usuario de un servicio web es una señal de alerta.",
+    "lab": "https://securitylabs.valentorassa.com/labs/linux-real/permisos-usuarios-procesos/"
+  },
+  {
+    "id": "docker",
+    "category": "contenedores",
+    "level": "básico",
+    "clues": [
+      "Construye imágenes y levanta contenedores a partir de ellas.",
+      "Su servicio de fondo suele correr como root y su logo es una ballena.",
+      "Su nombre en inglés es el oficio de quien carga y descarga barcos en un puerto."
+    ],
+    "summary": "Construye, ejecuta y administra contenedores e imágenes.",
+    "explanation": "docker es el cliente que habla con el daemon dockerd para construir imágenes, levantar contenedores y administrar redes y volúmenes. Un contenedor es un proceso aislado con namespaces y cgroups, no una máquina virtual: comparte el kernel del host. Las imágenes se construyen en capas a partir de un Dockerfile.",
+    "examples": [
+      {
+        "cmd": "docker run --rm -it debian:trixie-slim bash",
+        "desc": "Abre una shell en un contenedor descartable que se borra al salir."
+      },
+      {
+        "cmd": "docker ps -a",
+        "desc": "Lista los contenedores, incluidos los detenidos."
+      },
+      {
+        "cmd": "docker run --rm --read-only --cap-drop=ALL alpine:3.20 id",
+        "desc": "Corre un contenedor con el filesystem de solo lectura y sin capabilities."
+      }
+    ],
+    "security": "Pertenecer al grupo docker o montar /var/run/docker.sock dentro de un contenedor equivale a tener root en el host, así que tratalo como un acceso privilegiado.",
+    "lab": "https://securitylabs.valentorassa.com/labs/devsecops-agentes/docker-image-hardening/"
+  },
+  {
+    "id": "tail",
+    "category": "texto",
+    "level": "básico",
+    "clues": [
+      "Muestra solo las últimas líneas de un archivo.",
+      "Con -f se queda esperando y muestra las líneas nuevas a medida que llegan.",
+      "Su nombre en inglés significa «cola»."
+    ],
+    "summary": "Muestra las últimas líneas de un archivo y puede seguirlo en vivo.",
+    "explanation": "tail muestra por defecto las últimas 10 líneas de un archivo. Con -n elegís cuántas y con -f sigue el archivo mientras crece, que es la forma clásica de mirar un log en tiempo real. -F, además, sigue al archivo aunque lo roten y lo reemplacen por uno nuevo.",
+    "examples": [
+      {
+        "cmd": "tail -n 50 app.log",
+        "desc": "Muestra las últimas 50 líneas del log."
+      },
+      {
+        "cmd": "tail -F /var/log/nginx/access.log",
+        "desc": "Sigue el log de acceso de nginx en vivo, aunque lo roten."
+      },
+      {
+        "cmd": "tail -n +2 datos.csv",
+        "desc": "Muestra todo desde la línea 2, por ejemplo para saltear el encabezado de un CSV."
+      }
+    ],
+    "security": "Cualquiera con permiso de escritura sobre un log puede editar lo que ves con tail, por eso los logs importantes conviene enviarlos también a otro equipo."
+  },
+  {
+    "id": "curl",
+    "category": "redes",
+    "level": "básico",
+    "clues": [
+      "Hace requests HTTP desde la terminal y te muestra la respuesta.",
+      "Con -I pide solo los encabezados y con -v muestra toda la conversación con el servidor.",
+      "Lo mantiene Daniel Stenberg desde 1998 y su biblioteca está embebida en autos, consolas y teléfonos."
+    ],
+    "summary": "Transfiere datos desde o hacia una URL; la herramienta estándar para probar HTTP.",
+    "explanation": "curl envía una request a una URL y muestra la respuesta en la terminal. Soporta HTTP, HTTPS, FTP y muchos otros protocolos, y te deja elegir el método, los encabezados y el cuerpo. Es la forma más directa de probar una API o ver qué responde un servidor sin un navegador de por medio.",
+    "examples": [
+      {
+        "cmd": "curl -I https://example.com",
+        "desc": "Muestra solo los encabezados de la respuesta."
+      },
+      {
+        "cmd": "curl -s -o /dev/null -w '%{http_code}\\n' https://example.com",
+        "desc": "Imprime solo el código de estado HTTP."
+      },
+      {
+        "cmd": "curl -X POST -H 'Content-Type: application/json' -d '{\"titulo\":\"prueba\"}' http://localhost:8080/api/notas",
+        "desc": "Envía un JSON por POST a una API local de prueba."
+      }
+    ],
+    "security": "Evitá correr curl URL | sh con scripts que no leíste, porque ejecutás lo que el servidor decida mandarte en ese momento.",
+    "lab": "https://securitylabs.valentorassa.com/labs/redes-internet/una-request-no-es-magia/"
+  },
+  {
+    "id": "sudo",
+    "category": "permisos",
+    "level": "básico",
+    "clues": [
+      "Te deja ejecutar un comando con los privilegios de otro usuario, casi siempre root.",
+      "Pide tu propia contraseña, no la de root, y registra cada comando que ejecutás.",
+      "Su nombre viene de «superuser do»."
+    ],
+    "summary": "Ejecuta un comando con los privilegios de otro usuario, por defecto root.",
+    "explanation": "sudo te deja correr un comando puntual como root, u otro usuario, sin iniciar sesión como ese usuario. Quién puede usarlo y para qué se define en /etc/sudoers, que se edita con visudo para no romper la sintaxis. Te pide tu propia contraseña y la recuerda unos minutos.",
+    "examples": [
+      {
+        "cmd": "sudo apt-get update",
+        "desc": "Actualiza la lista de paquetes con privilegios de root."
+      },
+      {
+        "cmd": "sudo -l",
+        "desc": "Lista qué comandos podés ejecutar con sudo en ese equipo."
+      },
+      {
+        "cmd": "sudo -k",
+        "desc": "Olvida la contraseña recordada; la próxima vez te la vuelve a pedir."
+      }
+    ],
+    "security": "Una regla de sudoers que permite como root un editor, un intérprete o find equivale a dar root completo, porque desde esos programas se puede abrir una shell."
+  },
+  {
+    "id": "apt-get",
+    "category": "paquetes",
+    "level": "básico",
+    "clues": [
+      "Instala, actualiza y quita paquetes en Debian, Ubuntu y sus derivadas.",
+      "Antes de instalar se corre con update para refrescar el índice de los repositorios.",
+      "Lleva un guion y su segunda parte es el verbo «obtener» en inglés."
+    ],
+    "summary": "Instala, actualiza y elimina paquetes .deb desde los repositorios.",
+    "explanation": "apt-get es el gestor de paquetes de línea de comandos de Debian y Ubuntu: resuelve dependencias y descarga paquetes de los repositorios configurados. update actualiza el índice, upgrade instala versiones nuevas e install agrega paquetes. Su interfaz es estable entre versiones, por eso se prefiere en scripts frente a apt, que está pensado para uso interactivo.",
+    "examples": [
+      {
+        "cmd": "sudo apt-get update",
+        "desc": "Descarga el índice actualizado de los repositorios."
+      },
+      {
+        "cmd": "sudo apt-get install --no-install-recommends curl",
+        "desc": "Instala curl sin los paquetes recomendados."
+      },
+      {
+        "cmd": "apt-get -s install nginx",
+        "desc": "Simula la instalación y muestra qué agregaría, sin instalar nada."
+      }
+    ],
+    "security": "Instalá solo desde repositorios firmados que conozcas, porque agregar un repositorio de terceros le da a quien lo controla la posibilidad de instalar código que corre como root."
+  },
+  {
+    "id": "nmap",
+    "category": "seguridad",
+    "level": "intermedio",
+    "clues": [
+      "Descubre qué equipos hay en una red y qué puertos tienen abiertos.",
+      "Con -sV intenta identificar qué servicio y qué versión responde en cada puerto.",
+      "Lo creó Gordon Lyon, conocido como Fyodor, en 1997."
+    ],
+    "summary": "Escanea hosts y puertos para ver qué servicios están expuestos en una red.",
+    "explanation": "nmap manda paquetes a uno o varios hosts y, según cómo responden, deduce qué puertos están abiertos, cerrados o filtrados. También puede detectar versiones de servicios y sistemas operativos. Se usa para inventariar tu red y comprobar que no expongas más servicios de los que creés.",
+    "examples": [
+      {
+        "cmd": "nmap -sn 192.0.2.0/24",
+        "desc": "Descubre qué hosts responden en tu red de laboratorio, sin escanear puertos."
+      },
+      {
+        "cmd": "nmap -sV -p 22,80,443 192.0.2.10",
+        "desc": "Revisa tres puertos de un servidor propio e identifica qué servicio responde en cada uno."
+      },
+      {
+        "cmd": "nmap -p- --open localhost",
+        "desc": "Escanea todos los puertos TCP de tu propia máquina y muestra solo los abiertos."
+      }
+    ],
+    "security": "Escaneá solo redes y equipos propios o con autorización por escrito, porque un escaneo sin permiso puede violar contratos y leyes, además de disparar alertas en el otro lado."
+  },
+  {
+    "id": "gzip",
+    "category": "archivos",
+    "level": "básico",
+    "clues": [
+      "Comprime un archivo y reemplaza el original por la versión comprimida.",
+      "Es el compresor que usa tar cuando le pasás la opción -z.",
+      "Lo creó el proyecto GNU en 1992 como reemplazo libre de compress, y usa el algoritmo DEFLATE."
+    ],
+    "summary": "Comprime y descomprime archivos en formato .gz.",
+    "explanation": "gzip comprime un archivo con el algoritmo DEFLATE y lo reemplaza por la versión .gz; con -d, o con gunzip, lo descomprime. Comprime archivos de a uno: para una carpeta primero la empaquetás con tar y después la comprimís, que es lo que hace tar -czf. Con -k conservás el original.",
+    "examples": [
+      {
+        "cmd": "gzip -k informe.txt",
+        "desc": "Crea informe.txt.gz y conserva el original."
+      },
+      {
+        "cmd": "gzip -l backup.tar.gz",
+        "desc": "Muestra el tamaño comprimido y sin comprimir, sin descomprimir nada."
+      },
+      {
+        "cmd": "gzip -dc app.log.2.gz | grep -i error",
+        "desc": "Busca errores en un log rotado sin descomprimirlo en el disco."
+      }
+    ],
+    "security": "Comprimir no es cifrar: cualquiera descomprime un .gz, así que un backup con datos sensibles necesita cifrado aparte."
+  },
+  {
+    "id": "htop",
+    "category": "procesos",
+    "level": "básico",
+    "clues": [
+      "Muestra en vivo los procesos y el uso de CPU y memoria.",
+      "Te deja ordenar, buscar y mandar señales a procesos con las teclas de función.",
+      "Es la versión a color e interactiva, con soporte de mouse, del monitor clásico de tres letras."
+    ],
+    "summary": "Monitor interactivo de procesos, CPU y memoria.",
+    "explanation": "htop muestra en tiempo real los procesos del sistema con su consumo de CPU y memoria, y barras de uso por núcleo. A diferencia de top, te deja moverte con las flechas o el mouse, buscar con F3, filtrar con F4 y mandar señales con F9. Con F5 ves los procesos en forma de árbol, útil para entender quién lanzó qué.",
+    "examples": [
+      {
+        "cmd": "htop -u www-data",
+        "desc": "Muestra solo los procesos del usuario www-data."
+      },
+      {
+        "cmd": "htop -t",
+        "desc": "Arranca directamente en la vista de árbol."
+      },
+      {
+        "cmd": "htop -s PERCENT_MEM",
+        "desc": "Ordena los procesos por uso de memoria."
+      }
+    ],
+    "security": "La vista de árbol ayuda a detectar procesos que no encajan, como una shell lanzada por el servidor web, una señal típica de que alguien explotó la aplicación."
+  },
+  {
+    "id": "nslookup",
+    "category": "redes",
+    "level": "intermedio",
+    "clues": [
+      "Pregunta a un servidor DNS qué IP corresponde a un nombre, o al revés.",
+      "Existe también en Windows y tiene un modo interactivo si lo corrés sin argumentos.",
+      "Viene en el mismo paquete que dig, y con -type=mx consulta los servidores de correo."
+    ],
+    "summary": "Consulta servidores DNS para resolver nombres y direcciones.",
+    "explanation": "nslookup le pregunta a un servidor DNS qué responde para un nombre o una IP. Por defecto usa el resolver del sistema, pero podés indicarle otro servidor como segundo argumento para comparar respuestas. Está disponible en Linux, macOS y Windows, aunque para depurar en detalle dig muestra más información, como el TTL y las secciones de la respuesta.",
+    "examples": [
+      {
+        "cmd": "nslookup example.com",
+        "desc": "Muestra las IP del dominio según tu resolver."
+      },
+      {
+        "cmd": "nslookup example.com 9.9.9.9",
+        "desc": "Hace la misma consulta a otro servidor DNS, para comparar respuestas."
+      },
+      {
+        "cmd": "nslookup -type=mx example.com",
+        "desc": "Consulta los servidores de correo del dominio."
+      }
+    ],
+    "security": "Comparar la respuesta de tu resolver con la de un servidor confiable te ayuda a detectar un DNS manipulado, por ejemplo por un router comprometido o por malware que cambió tu configuración."
+  },
+  {
+    "id": "chown",
+    "category": "permisos",
+    "level": "básico",
+    "clues": [
+      "Cambia a quién pertenece un archivo.",
+      "Casi siempre necesita sudo, porque un usuario común no puede regalarle archivos a otro.",
+      "Acepta usuario y grupo juntos, separados por dos puntos, como ana:devs."
+    ],
+    "summary": "Cambia el usuario dueño y el grupo de archivos y directorios.",
+    "explanation": "chown cambia el dueño de un archivo y, opcionalmente, su grupo, con la forma usuario:grupo. Solo root puede pasarle un archivo a otro usuario, por eso casi siempre se usa con sudo. Con -R aplica el cambio a todo un directorio.",
+    "examples": [
+      {
+        "cmd": "sudo chown www-data:www-data /var/www/app/uploads",
+        "desc": "Le da la carpeta de subidas al usuario del servidor web."
+      },
+      {
+        "cmd": "sudo chown -R ana:devs /srv/proyecto",
+        "desc": "Cambia dueño y grupo de todo el árbol del proyecto."
+      },
+      {
+        "cmd": "sudo chown :devs informe.txt",
+        "desc": "Cambia solo el grupo y deja el dueño como estaba."
+      }
+    ],
+    "security": "Darle al usuario del servidor web la propiedad de todo el código, y no solo de la carpeta en la que necesita escribir, permite que una vulnerabilidad en la aplicación termine modificando sus propios archivos."
+  },
+  {
+    "id": "sort",
+    "category": "texto",
+    "level": "básico",
+    "clues": [
+      "Ordena las líneas de un texto.",
+      "Con -n compara números, con -r invierte el orden y con -k elige la columna.",
+      "Casi siempre aparece antes de uniq en un pipe."
+    ],
+    "summary": "Ordena líneas de texto alfabética o numéricamente.",
+    "explanation": "sort lee líneas y las devuelve ordenadas. Por defecto compara como texto, así que 10 queda antes que 9; con -n compara números y con -h entiende tamaños como 2K o 1G. Se combina con uniq porque uniq solo detecta duplicados que están uno al lado del otro.",
+    "examples": [
+      {
+        "cmd": "sort -u correos.txt",
+        "desc": "Ordena la lista y elimina los duplicados."
+      },
+      {
+        "cmd": "du -sh * | sort -h",
+        "desc": "Ordena carpetas por tamaño legible, de menor a mayor."
+      },
+      {
+        "cmd": "sort -t, -k3,3n ventas.csv",
+        "desc": "Ordena un CSV por la tercera columna, como número."
+      }
+    ],
+    "security": "Con cut -d' ' -f1 access.log | sort | uniq -c | sort -rn ves qué IP hicieron más requests, una forma rápida de detectar un escaneo o un ataque de fuerza bruta en tus logs."
+  },
+  {
+    "id": "uname",
+    "category": "sistema",
+    "level": "básico",
+    "clues": [
+      "Muestra información básica del kernel que está corriendo.",
+      "Con -m te dice la arquitectura, por ejemplo x86_64 o aarch64.",
+      "Con -a junta todo en una línea; su nombre combina la inicial de Unix con «nombre» en inglés."
+    ],
+    "summary": "Muestra el nombre del kernel, su versión y la arquitectura.",
+    "explanation": "uname imprime datos del kernel en ejecución: nombre, versión, arquitectura y nombre del equipo. Con -r muestra solo la versión, que es lo que necesitás para saber si un parche ya está aplicado. Muestra el kernel que está corriendo, que puede no ser el último instalado si todavía no reiniciaste.",
+    "examples": [
+      {
+        "cmd": "uname -a",
+        "desc": "Muestra toda la información del kernel en una línea."
+      },
+      {
+        "cmd": "uname -r",
+        "desc": "Muestra solo la versión del kernel."
+      },
+      {
+        "cmd": "uname -m",
+        "desc": "Muestra la arquitectura del equipo."
+      }
+    ],
+    "security": "Después de actualizar el kernel, compará uname -r con la versión instalada: hasta que reinicies seguís corriendo el kernel viejo, con sus vulnerabilidades."
+  },
+  {
+    "id": "base64",
+    "category": "seguridad",
+    "level": "intermedio",
+    "clues": [
+      "Convierte bytes cualquiera en texto seguro para transportar, y vuelve atrás.",
+      "Con -d decodifica, y su salida suele terminar en uno o dos signos =.",
+      "Es el encoding de los adjuntos de correo, de los secrets de Kubernetes y, en una variante, de las partes de un JWT."
+    ],
+    "summary": "Codifica y decodifica datos en Base64.",
+    "explanation": "base64 transforma cualquier secuencia de bytes en texto con un alfabeto de 64 caracteres, para que pueda viajar por medios pensados para texto, como el correo o JSON. Es un encoding, no cifrado: no tiene clave y cualquiera lo revierte con base64 -d. La versión GNU corta la salida cada 76 caracteres; con -w 0 la deja en una sola línea.",
+    "examples": [
+      {
+        "cmd": "echo -n 'hola' | base64",
+        "desc": "Codifica la palabra hola y devuelve aG9sYQ==."
+      },
+      {
+        "cmd": "echo 'aG9sYQ==' | base64 -d",
+        "desc": "Decodifica de vuelta al texto original."
+      },
+      {
+        "cmd": "base64 -w 0 imagen.png > imagen.b64",
+        "desc": "Codifica un archivo binario en una sola línea."
+      }
+    ],
+    "security": "Un secreto en base64 no está protegido: un token, una contraseña o un secret de Kubernetes codificados se leen con un base64 -d, así que tratalos como texto plano.",
+    "lab": "https://securitylabs.valentorassa.com/labs/ciberseguridad/hashear-no-es-cifrar/"
+  },
+  {
+    "id": "rsync",
+    "category": "archivos",
+    "level": "intermedio",
+    "clues": [
+      "Copia y sincroniza archivos entre carpetas o entre equipos.",
+      "Solo transfiere lo que cambió, y entre equipos suele viajar sobre SSH.",
+      "Con -a conserva permisos y fechas, y con --delete borra en el destino lo que ya no está en el origen."
+    ],
+    "summary": "Sincroniza archivos y directorios, local o remotamente, transfiriendo solo las diferencias.",
+    "explanation": "rsync compara origen y destino y copia solo lo que cambió, lo que lo hace ideal para backups y despliegues. La opción -a (archive) conserva permisos, dueños, fechas y enlaces simbólicos. Ojo con la barra final: origen/ copia el contenido de la carpeta, y origen sin barra copia la carpeta entera.",
+    "examples": [
+      {
+        "cmd": "rsync -av ~/documentos/ /mnt/backup/documentos/",
+        "desc": "Copia el contenido conservando permisos y fechas, y muestra qué transfiere."
+      },
+      {
+        "cmd": "rsync -avz -e ssh ./sitio/ usuario@192.0.2.10:/var/www/sitio/",
+        "desc": "Sube un sitio a un servidor por SSH, comprimiendo en tránsito."
+      },
+      {
+        "cmd": "rsync -av --delete --dry-run origen/ destino/",
+        "desc": "Muestra qué copiaría y qué borraría, sin tocar nada."
+      }
+    ],
+    "security": "Probá siempre --delete con --dry-run antes, porque un origen equivocado o una barra de más puede vaciar el destino, y si ese destino es tu backup te quedás sin copia."
+  },
+  {
+    "id": "strace",
+    "category": "procesos",
+    "level": "avanzado",
+    "clues": [
+      "Te deja ver qué le pide un programa al kernel mientras corre.",
+      "Con -e openat anota solo las aperturas de archivos y con -p se engancha a un proceso que ya está corriendo.",
+      "Su salida tiene líneas como openat(AT_FDCWD, \"/etc/passwd\", O_RDONLY) = 3."
+    ],
+    "summary": "Muestra las llamadas al sistema que hace un proceso.",
+    "explanation": "strace ejecuta un programa, o se engancha a uno que ya corre, y registra cada syscall que hace: qué archivos abre, qué lee y escribe, qué conexiones intenta y con qué resultado. Es muy útil para entender por qué algo falla sin un mensaje claro, por ejemplo un archivo de configuración que no encuentra o un permiso denegado. Hace más lento al proceso, así que usalo con cuidado en producción.",
+    "examples": [
+      {
+        "cmd": "strace -e trace=openat ls /tmp",
+        "desc": "Muestra qué archivos abre ls mientras corre."
+      },
+      {
+        "cmd": "strace -c ls /tmp",
+        "desc": "Cuenta las syscalls y el tiempo de cada una, en lugar de listarlas."
+      },
+      {
+        "cmd": "sudo strace -f -p 4321 -o traza.txt",
+        "desc": "Se engancha al proceso 4321 y a sus hijos y guarda la traza en un archivo."
+      }
+    ],
+    "security": "Una traza puede incluir contraseñas y tokens en texto plano dentro de las llamadas read y write, así que tratala como un dato sensible y no la compartas sin revisarla.",
+    "lab": "https://securitylabs.valentorassa.com/labs/linux-real/del-comando-al-kernel/"
+  },
+  {
+    "id": "gitleaks",
+    "category": "git",
+    "level": "intermedio",
+    "clues": [
+      "Revisa un repositorio en busca de contraseñas, tokens y claves que alguien commiteó.",
+      "Analiza también el historial completo, no solo los archivos actuales, con reglas de expresiones regulares y entropía.",
+      "Está escrito en Go y su nombre junta el sistema de control de versiones más usado con «filtraciones» en inglés."
+    ],
+    "summary": "Detecta secretos filtrados en repositorios git y en su historial.",
+    "explanation": "gitleaks recorre los commits de un repositorio y busca patrones de secretos conocidos, como claves de AWS, tokens de GitHub o claves privadas. Revisa el historial completo porque borrar un archivo en un commit nuevo no saca el secreto de los commits anteriores. Se puede correr a mano, como hook de pre-commit o en CI; las versiones más nuevas también aceptan los subcomandos git y dir.",
+    "examples": [
+      {
+        "cmd": "gitleaks detect --source . -v",
+        "desc": "Escanea el repositorio actual y todo su historial, mostrando cada hallazgo."
+      },
+      {
+        "cmd": "gitleaks protect --staged -v",
+        "desc": "Revisa solo los cambios en staging, antes de commitear."
+      },
+      {
+        "cmd": "gitleaks detect --source . --report-format json --report-path hallazgos.json",
+        "desc": "Guarda los hallazgos en un JSON para revisarlos o procesarlos en CI."
+      }
+    ],
+    "security": "Si aparece un secreto real en el historial, lo primero es rotarlo, porque reescribir la historia no sirve si alguien ya clonó el repo o si la clave quedó en un fork.",
+    "lab": "https://securitylabs.valentorassa.com/labs/devsecops-agentes/secret-scanning-token-al-repo/"
+  },
+  {
+    "id": "wget",
+    "category": "redes",
+    "level": "básico",
+    "clues": [
+      "Descarga archivos de la web directamente al disco.",
+      "Puede retomar descargas cortadas con -c y bajar sitios enteros de forma recursiva.",
+      "Su nombre junta la World Wide Web con «obtener» en inglés."
+    ],
+    "summary": "Descarga archivos por HTTP, HTTPS o FTP desde la terminal.",
+    "explanation": "wget descarga lo que le pasás por URL y lo guarda en un archivo, sin necesidad de interacción. Puede reintentar, retomar descargas interrumpidas con -c y seguir enlaces para copiar un sitio de forma recursiva. Comparado con curl, está más orientado a bajar archivos que a probar APIs.",
+    "examples": [
+      {
+        "cmd": "wget https://example.com/archivo.iso",
+        "desc": "Descarga el archivo en el directorio actual."
+      },
+      {
+        "cmd": "wget -c https://example.com/archivo.iso",
+        "desc": "Retoma una descarga que se cortó."
+      },
+      {
+        "cmd": "wget -q -O - https://example.com | head",
+        "desc": "Imprime el comienzo de la página en la terminal en lugar de guardarla."
+      }
+    ],
+    "security": "Después de descargar un instalador o una imagen, verificá su checksum o su firma contra los que publica el proyecto, porque el archivo pudo ser alterado en el servidor o en un mirror."
+  },
+  {
+    "id": "passwd",
+    "category": "permisos",
+    "level": "básico",
+    "clues": [
+      "Lo usás cuando tenés que renovar tu credencial de inicio de sesión.",
+      "Como root también puede bloquear una cuenta con -l o forzar el cambio en el próximo login con -e.",
+      "Comparte nombre con el archivo de /etc que lista los usuarios, aunque los hashes viven en /etc/shadow."
+    ],
+    "summary": "Cambia la contraseña de un usuario y administra el estado de su cuenta.",
+    "explanation": "passwd cambia tu contraseña o, como root, la de cualquier usuario. Guarda el hash nuevo en /etc/shadow, un archivo que los usuarios comunes no pueden leer. También sirve para bloquear y desbloquear contraseñas y para ver el estado de una cuenta con -S.",
+    "examples": [
+      {
+        "cmd": "passwd",
+        "desc": "Cambia tu propia contraseña; primero te pide la actual."
+      },
+      {
+        "cmd": "sudo passwd -l ana",
+        "desc": "Bloquea la contraseña de la cuenta ana."
+      },
+      {
+        "cmd": "sudo passwd -S ana",
+        "desc": "Muestra el estado de la cuenta: si la contraseña está bloqueada y cuándo cambió por última vez."
+      }
+    ],
+    "security": "passwd -l solo bloquea el login con contraseña, así que una cuenta con una clave SSH autorizada todavía puede entrar: para dar de baja a alguien revisá también sus authorized_keys o expirá la cuenta."
+  },
+  {
+    "id": "less",
+    "category": "texto",
+    "level": "básico",
+    "clues": [
+      "Te deja leer un archivo largo de a una pantalla, sin abrirlo en un editor.",
+      "Con / buscás, con q salís y con Shift+F seguís el archivo como un log en vivo.",
+      "Su nombre es un juego de palabras con more, el paginador que vino antes."
+    ],
+    "summary": "Paginador para leer archivos y salidas largas en la terminal.",
+    "explanation": "less muestra un archivo o la salida de otro comando de a una pantalla y te deja moverte hacia adelante y hacia atrás sin cargar todo en memoria. Podés buscar con /, saltar al final con G y salir con q. Es el paginador que usa man por defecto en la mayoría de las distribuciones.",
+    "examples": [
+      {
+        "cmd": "less /var/log/dpkg.log",
+        "desc": "Abre el log para leerlo y buscar en él."
+      },
+      {
+        "cmd": "ps aux | less -S",
+        "desc": "Muestra los procesos sin partir las líneas largas; te movés a los costados con las flechas."
+      },
+      {
+        "cmd": "less +F app.log",
+        "desc": "Sigue el archivo como tail -f; con Ctrl+C volvés a navegar."
+      }
+    ],
+    "security": "Desde less se puede abrir una shell con !, así que una regla de sudoers que lo permita como root le da root completo a ese usuario."
+  },
+  {
+    "id": "crontab",
+    "category": "sistema",
+    "level": "intermedio",
+    "clues": [
+      "Programa tareas para que se ejecuten solas en horarios fijos.",
+      "Cada línea tiene cinco campos de tiempo: minuto, hora, día del mes, mes y día de la semana.",
+      "Con -e editás tus tareas y con -l las listás; el demonio que las ejecuta se llama igual, pero sin las últimas tres letras."
+    ],
+    "summary": "Edita y lista las tareas programadas de un usuario.",
+    "explanation": "crontab administra la tabla de tareas de cron de cada usuario: líneas con cinco campos de tiempo y el comando a ejecutar. El demonio cron revisa esas tablas cada minuto y ejecuta lo que corresponde. Las tareas corren con un entorno mínimo, así que conviene usar rutas absolutas y mandar la salida a un log.",
+    "examples": [
+      {
+        "cmd": "crontab -l",
+        "desc": "Lista tus tareas programadas."
+      },
+      {
+        "cmd": "crontab -e",
+        "desc": "Abre tus tareas en el editor; una línea como 30 3 * * * /usr/local/bin/backup.sh corre el script todos los días a las 3:30."
+      },
+      {
+        "cmd": "sudo crontab -u www-data -l",
+        "desc": "Lista las tareas programadas de otro usuario."
+      }
+    ],
+    "security": "Las tareas de cron son un lugar clásico para que un atacante deje persistencia, así que revisá de vez en cuando las de cada usuario, /etc/crontab y /etc/cron.d, y que los scripts que ejecutan no sean escribibles por otros."
+  },
+  {
+    "id": "podman",
+    "category": "contenedores",
+    "level": "intermedio",
+    "clues": [
+      "Corre contenedores con imágenes OCI sin necesitar un daemon central.",
+      "Puede funcionar rootless: los contenedores corren como tu usuario y no como root.",
+      "Acepta casi las mismas órdenes que Docker y lo impulsa Red Hat."
+    ],
+    "summary": "Ejecuta y administra contenedores sin daemon, también como usuario sin privilegios.",
+    "explanation": "podman administra imágenes y contenedores con comandos casi iguales a los de Docker, pero sin un servicio central que corra como root: cada contenedor queda supervisado por un proceso propio. En modo rootless usa user namespaces, así que root dentro del contenedor es tu usuario normal afuera. También agrupa contenedores en pods que comparten red, como en Kubernetes.",
+    "examples": [
+      {
+        "cmd": "podman run --rm -it docker.io/library/debian:trixie-slim bash",
+        "desc": "Abre una shell en un contenedor descartable."
+      },
+      {
+        "cmd": "podman ps -a",
+        "desc": "Lista los contenedores, también los detenidos."
+      },
+      {
+        "cmd": "podman top web user huser",
+        "desc": "Muestra con qué usuario corre cada proceso dentro del contenedor web y a qué usuario del host corresponde."
+      }
+    ],
+    "security": "En modo rootless, escapar del contenedor te deja con los permisos de tu usuario y no con root del host, lo que reduce mucho el daño de una vulnerabilidad.",
+    "lab": "https://securitylabs.valentorassa.com/labs/linux-real/contenedores-sin-magia/"
+  },
+  {
+    "id": "openssl",
+    "category": "seguridad",
+    "level": "avanzado",
+    "clues": [
+      "Una navaja suiza criptográfica: genera claves, certificados y hashes.",
+      "Con s_client se conecta a un servidor TLS y te muestra el certificado que presenta.",
+      "Es también el nombre de la biblioteca de TLS más usada en Linux, la del bug Heartbleed."
+    ],
+    "summary": "Herramienta criptográfica para claves, certificados, hashes y conexiones TLS.",
+    "explanation": "openssl es el cliente de línea de comandos de la biblioteca del mismo nombre. Con sus subcomandos generás claves y pedidos de certificado (req), inspeccionás certificados (x509), calculás hashes (dgst) y probás conexiones TLS (s_client). Es la forma más directa de ver qué certificado presenta un servidor y cuándo vence.",
+    "examples": [
+      {
+        "cmd": "openssl s_client -connect example.com:443 -servername example.com </dev/null",
+        "desc": "Se conecta por TLS y muestra la cadena de certificados del servidor."
+      },
+      {
+        "cmd": "openssl s_client -connect example.com:443 -servername example.com </dev/null 2>/dev/null | openssl x509 -noout -subject -issuer -dates",
+        "desc": "Muestra a quién pertenece el certificado, quién lo emitió y entre qué fechas es válido."
+      },
+      {
+        "cmd": "openssl rand -hex 32",
+        "desc": "Genera 32 bytes aleatorios en hexadecimal, útiles como secreto."
+      }
+    ],
+    "security": "Una clave privada generada con openssl tiene que quedar con permisos 600 y fuera de cualquier repositorio, porque quien la tenga puede hacerse pasar por tu servidor.",
+    "lab": "https://securitylabs.valentorassa.com/labs/redes-internet/tls-sin-magia/"
+  },
+  {
+    "id": "diff",
+    "category": "texto",
+    "level": "básico",
+    "clues": [
+      "Compara dos archivos y te dice qué líneas cambiaron.",
+      "Con -u produce el formato unificado, con líneas que empiezan con + y -.",
+      "Su salida es la base de los parches que se aplican con patch."
+    ],
+    "summary": "Compara archivos línea por línea y muestra las diferencias.",
+    "explanation": "diff compara dos archivos, o dos directorios con -r, y muestra qué líneas hay que cambiar para pasar de uno al otro. El formato unificado de -u es el más legible y el que usan git y patch. Si no muestra nada, los archivos son idénticos y el código de salida es 0.",
+    "examples": [
+      {
+        "cmd": "diff app.conf.bak app.conf",
+        "desc": "Muestra qué cambió respecto de la copia."
+      },
+      {
+        "cmd": "diff -u app.conf.bak app.conf",
+        "desc": "Muestra los cambios en formato unificado, con contexto."
+      },
+      {
+        "cmd": "diff -rq /etc/nginx/ ~/nginx-respaldo/",
+        "desc": "Lista qué archivos difieren entre dos directorios, sin mostrar el detalle."
+      }
+    ],
+    "security": "Guardar una copia de los archivos de configuración críticos y compararla con diff te permite detectar cambios no autorizados, la misma idea que automatizan herramientas como AIDE.",
+    "lab": "https://securitylabs.valentorassa.com/labs/linux-real/editar-archivos-sin-romperlos/"
+  },
+  {
+    "id": "stat",
+    "category": "archivos",
+    "level": "intermedio",
+    "clues": [
+      "Muestra todos los metadatos de un archivo: tamaño, inodo, permisos y fechas.",
+      "Distingue tres fechas: último acceso, modificación del contenido y cambio de metadatos.",
+      "Con -c '%a %n' te da los permisos en octal y el nombre del archivo."
+    ],
+    "summary": "Muestra los metadatos de un archivo: permisos, dueño, tamaño, inodo y fechas.",
+    "explanation": "stat muestra la información que guarda el sistema de archivos sobre un archivo, más completa que ls -l. Distingue entre la modificación del contenido (mtime), el cambio de metadatos como permisos o dueño (ctime) y el último acceso (atime). Con -c elegís qué campos imprimir, por ejemplo los permisos en octal.",
+    "examples": [
+      {
+        "cmd": "stat /etc/passwd",
+        "desc": "Muestra todos los metadatos del archivo."
+      },
+      {
+        "cmd": "stat -c '%a %U:%G %n' ~/.ssh/id_ed25519",
+        "desc": "Muestra los permisos en octal, el dueño, el grupo y el nombre."
+      },
+      {
+        "cmd": "stat -c '%y %n' /etc/hosts",
+        "desc": "Muestra la fecha de la última modificación del contenido."
+      }
+    ],
+    "security": "La fecha de modificación se puede falsificar con touch, pero la de cambio (ctime) se actualiza sola con cualquier cambio de metadatos, así que en un análisis forense conviene compararlas.",
+    "lab": "https://securitylabs.valentorassa.com/labs/linux-real/permisos-en-octal/"
+  },
+  {
+    "id": "tcpdump",
+    "category": "redes",
+    "level": "avanzado",
+    "clues": [
+      "Captura los paquetes que pasan por una interfaz de red y los muestra en la terminal.",
+      "Usa filtros como «port 53» o «host 192.0.2.10» y puede guardar todo en un archivo .pcap.",
+      "Wireshark abre sus capturas; es su equivalente clásico de terminal."
+    ],
+    "summary": "Captura y muestra el tráfico de red que pasa por una interfaz.",
+    "explanation": "tcpdump escucha en una interfaz y muestra un resumen de cada paquete que coincide con un filtro, o lo guarda en un archivo pcap para analizarlo después con Wireshark. Los filtros usan la sintaxis BPF: host, port, net, tcp, udp y combinaciones con and, or y not. Necesita privilegios de root o capabilities específicas como CAP_NET_RAW.",
+    "examples": [
+      {
+        "cmd": "sudo tcpdump -i eth0 -n port 53",
+        "desc": "Muestra las consultas DNS que pasan por eth0, sin resolver nombres."
+      },
+      {
+        "cmd": "sudo tcpdump -i any -n host 192.0.2.10 and port 443",
+        "desc": "Captura el tráfico HTTPS hacia o desde un equipo de tu red."
+      },
+      {
+        "cmd": "sudo tcpdump -i eth0 -c 1000 -w captura.pcap",
+        "desc": "Guarda 1000 paquetes en un archivo para abrirlo en Wireshark."
+      }
+    ],
+    "security": "Capturá solo en redes y equipos que administrás o con autorización, porque una captura puede contener contraseñas, cookies y datos personales de terceros, y tenés que guardarla y borrarla con el mismo cuidado."
+  },
+  {
+    "id": "getfacl",
+    "category": "permisos",
+    "level": "intermedio",
+    "clues": [
+      "Muestra permisos que van más allá de dueño, grupo y otros.",
+      "Lo necesitás cuando ls -l muestra un signo + al final de los permisos.",
+      "Lee las listas de control de acceso; su hermano que las modifica empieza con «set»."
+    ],
+    "summary": "Muestra las listas de control de acceso (ACL) de archivos y directorios.",
+    "explanation": "Las ACL permiten dar permisos a usuarios o grupos puntuales, además del dueño, el grupo y el resto. getfacl las muestra, incluida la máscara que limita los permisos efectivos, y setfacl las modifica. Un + al final de los permisos en ls -l te avisa que el archivo tiene ACL.",
+    "examples": [
+      {
+        "cmd": "getfacl informe.txt",
+        "desc": "Muestra el dueño, el grupo y las entradas de ACL del archivo."
+      },
+      {
+        "cmd": "getfacl -R /srv/compartido > acl-respaldo.txt",
+        "desc": "Guarda las ACL de todo el árbol en un archivo de texto."
+      },
+      {
+        "cmd": "getfacl plantilla.txt | setfacl --set-file=- informe.txt",
+        "desc": "Copia las ACL de un archivo a otro."
+      }
+    ],
+    "security": "Un archivo puede parecer privado en ls -l y tener una ACL que le da lectura a otro usuario, así que en una auditoría de permisos revisá también las ACL."
+  },
+  {
+    "id": "lsof",
+    "category": "procesos",
+    "level": "intermedio",
+    "clues": [
+      "Lista lo que tiene abierto cada proceso, y en Linux casi todo es un archivo.",
+      "Con -i muestra conexiones de red y con -p lo que abrió un proceso concreto.",
+      "Su nombre abrevia «list open files»."
+    ],
+    "summary": "Lista los archivos, sockets y dispositivos que tiene abiertos cada proceso.",
+    "explanation": "lsof muestra qué procesos tienen abierto qué: archivos comunes, directorios, sockets de red, pipes y dispositivos. Sirve para saber qué proceso ocupa un puerto, quién bloquea un disco que no podés desmontar o qué archivos borrados siguen ocupando espacio. Sin root solo ves tus propios procesos.",
+    "examples": [
+      {
+        "cmd": "sudo lsof -i :8080",
+        "desc": "Muestra qué proceso está usando el puerto 8080."
+      },
+      {
+        "cmd": "sudo lsof -p 4321",
+        "desc": "Lista los archivos y sockets que abrió el proceso 4321."
+      },
+      {
+        "cmd": "sudo lsof +L1",
+        "desc": "Lista archivos borrados que siguen abiertos y ocupando espacio en disco."
+      }
+    ],
+    "security": "Un ejecutable que corre aunque su archivo ya fue borrado aparece con lsof +L1, una técnica que usa malware para no dejar rastro en disco y que en un análisis forense te deja recuperarlo desde /proc/<pid>/exe."
+  },
+  {
+    "id": "dpkg",
+    "category": "paquetes",
+    "level": "intermedio",
+    "clues": [
+      "Instala y consulta paquetes .deb sin resolver dependencias por su cuenta.",
+      "Con -l lista lo instalado y con -S te dice qué paquete trajo un archivo.",
+      "Es la herramienta de bajo nivel sobre la que se apoya apt en Debian y Ubuntu."
+    ],
+    "summary": "Gestor de paquetes de bajo nivel de Debian: instala, quita y consulta paquetes .deb.",
+    "explanation": "dpkg trabaja directamente con archivos .deb: los instala, los desinstala y lleva la base de datos de qué está instalado. A diferencia de apt, no descarga nada ni resuelve dependencias. Es muy útil para consultas: qué paquete instaló un archivo, qué archivos trae un paquete y si alguno fue modificado después de instalarlo.",
+    "examples": [
+      {
+        "cmd": "dpkg -S /usr/bin/passwd",
+        "desc": "Te dice qué paquete instaló ese archivo."
+      },
+      {
+        "cmd": "dpkg -c paquete.deb",
+        "desc": "Lista los archivos que trae un .deb, sin instalarlo."
+      },
+      {
+        "cmd": "dpkg --verify openssh-server",
+        "desc": "Compara los archivos instalados del paquete con las sumas que trajo, para detectar cambios."
+      }
+    ],
+    "security": "Instalar un .deb con dpkg -i corre sus scripts de instalación como root, así que no instales paquetes sueltos de fuentes que no conocés sin revisarlos antes.",
+    "lab": "https://securitylabs.valentorassa.com/labs/linux-real/anatomia-de-un-deb/"
+  },
+  {
+    "id": "md5sum",
+    "category": "seguridad",
+    "level": "intermedio",
+    "clues": [
+      "Calcula una huella de un archivo para comprobar que no cambió.",
+      "Con -c verifica una lista de huellas guardada antes y marca cada archivo como OK o FAILED.",
+      "Su algoritmo lo diseñó Ron Rivest en 1991, produce 128 bits y hoy se considera roto para seguridad."
+    ],
+    "summary": "Calcula y verifica sumas MD5 de archivos.",
+    "explanation": "md5sum calcula el hash MD5 de un archivo: 32 caracteres hexadecimales que cambian por completo si cambia un solo byte. Con -c compara los archivos contra una lista de sumas guardada antes, la forma clásica de verificar una descarga o detectar archivos modificados. MD5 sigue sirviendo para detectar corrupción accidental, pero no protege contra alguien que altera un archivo a propósito.",
+    "examples": [
+      {
+        "cmd": "md5sum imagen.iso",
+        "desc": "Calcula la suma MD5 del archivo."
+      },
+      {
+        "cmd": "md5sum /etc/*.conf > base.md5",
+        "desc": "Guarda las sumas de los archivos de configuración para compararlas más adelante."
+      },
+      {
+        "cmd": "md5sum -c --quiet base.md5",
+        "desc": "Verifica cada archivo contra la suma guardada y muestra solo los que cambiaron."
+      }
+    ],
+    "security": "MD5 tiene colisiones prácticas desde 2004, así que no lo uses para verificar integridad frente a un atacante ni para guardar contraseñas: para archivos usá sha256sum y para contraseñas un algoritmo como bcrypt o Argon2."
+  },
+  {
+    "id": "uniq",
+    "category": "texto",
+    "level": "intermedio",
+    "clues": [
+      "Filtra las líneas repetidas de un texto.",
+      "Solo detecta duplicados que están uno al lado del otro, por eso casi siempre va después de sort.",
+      "Con -c antepone cuántas veces aparece cada línea; su nombre abrevia «único» en inglés."
+    ],
+    "summary": "Filtra o cuenta líneas repetidas consecutivas.",
+    "explanation": "uniq compara cada línea con la anterior y elimina las repetidas, o las cuenta con -c. Como solo mira líneas consecutivas, primero tenés que ordenar con sort. Con -d muestra solo las líneas duplicadas y con -u solo las que aparecen una vez.",
+    "examples": [
+      {
+        "cmd": "sort ips.txt | uniq -c | sort -rn | head",
+        "desc": "Muestra las IP que más se repiten, de mayor a menor."
+      },
+      {
+        "cmd": "sort usuarios.txt | uniq -d",
+        "desc": "Muestra solo los nombres que aparecen más de una vez."
+      },
+      {
+        "cmd": "sort lista.txt | uniq -u",
+        "desc": "Muestra solo las líneas que no se repiten."
+      }
+    ],
+    "security": "Contar con sort | uniq -c los usuarios de los intentos de login fallidos te muestra rápido si hay fuerza bruta contra root o contra cuentas que ni siquiera existen."
+  },
+  {
+    "id": "sysctl",
+    "category": "sistema",
+    "level": "avanzado",
+    "clues": [
+      "Lee y cambia parámetros del kernel mientras el equipo está corriendo.",
+      "Usa claves con puntos, como net.ipv4.ip_forward o kernel.dmesg_restrict.",
+      "Un cambio con -w dura hasta el reinicio; su nombre junta abreviaturas en inglés de «sistema» y «control»."
+    ],
+    "summary": "Lee y modifica parámetros del kernel en tiempo de ejecución.",
+    "explanation": "sysctl consulta y cambia los parámetros del kernel expuestos en /proc/sys, como el reenvío de paquetes, límites de memoria o protecciones de seguridad. Un cambio con -w dura hasta el próximo reinicio; para que sea permanente se escribe en un archivo dentro de /etc/sysctl.d/ y se aplica con sysctl --system. Las claves usan puntos donde la ruta usa barras: net.ipv4.ip_forward es /proc/sys/net/ipv4/ip_forward.",
+    "examples": [
+      {
+        "cmd": "sysctl net.ipv4.ip_forward",
+        "desc": "Muestra si el equipo reenvía paquetes entre interfaces."
+      },
+      {
+        "cmd": "sudo sysctl -w kernel.dmesg_restrict=1",
+        "desc": "Impide que usuarios sin privilegios lean los mensajes del kernel, hasta el próximo reinicio."
+      },
+      {
+        "cmd": "sudo sysctl --system",
+        "desc": "Recarga todos los archivos de configuración, como los de /etc/sysctl.d/."
+      }
+    ],
+    "security": "Varias defensas del kernel se controlan con sysctl, como kernel.randomize_va_space=2 para ASLR completo o kernel.kptr_restrict, y un servidor que no necesita rutear debería tener net.ipv4.ip_forward=0."
+  },
+  {
+    "id": "pkill",
+    "category": "procesos",
+    "level": "intermedio",
+    "clues": [
+      "Termina procesos buscándolos por nombre en vez de por PID.",
+      "Con -u se limita a los procesos de un usuario y con -f compara contra la línea de comandos completa.",
+      "Usa los mismos filtros que pgrep, pero en vez de listar, envía una señal."
+    ],
+    "summary": "Envía una señal a los procesos que coinciden con un nombre u otro criterio.",
+    "explanation": "pkill busca procesos por nombre, usuario, terminal u otros criterios y les envía una señal, por defecto SIGTERM. Usa los mismos filtros que pgrep, así que conviene probar primero con pgrep para ver qué procesos coinciden. El patrón es una expresión regular que coincide con partes del nombre, salvo que uses -x para exigir el nombre exacto.",
+    "examples": [
+      {
+        "cmd": "pkill -x firefox",
+        "desc": "Termina los procesos que se llaman exactamente firefox."
+      },
+      {
+        "cmd": "pkill -f 'python3 servidor.py'",
+        "desc": "Termina el proceso cuya línea de comandos completa coincide con el patrón."
+      },
+      {
+        "cmd": "sudo pkill -u ana",
+        "desc": "Termina todos los procesos del usuario ana, por ejemplo para cerrarle la sesión."
+      }
+    ],
+    "security": "Probá el patrón antes con pgrep -a, porque pkill sh también coincide con bash y sshd, y como root podés cortar tu propia conexión o un servicio crítico."
+  },
+  {
+    "id": "chattr",
+    "category": "archivos",
+    "level": "avanzado",
+    "clues": [
+      "Cambia atributos especiales de un archivo, que van más allá de los permisos.",
+      "Con +a el archivo solo acepta escritura al final, algo útil para logs.",
+      "Con +i lo vuelve inmutable: ni root puede modificarlo ni borrarlo hasta quitar el atributo."
+    ],
+    "summary": "Cambia atributos de archivos en sistemas de archivos de Linux, como inmutable o solo agregar.",
+    "explanation": "chattr modifica atributos que el sistema de archivos aplica por encima de los permisos comunes. Los más usados son i, inmutable (nadie, ni root, puede modificar, renombrar ni borrar el archivo), y a, que solo permite agregar al final. Hace falta root, y los atributos se consultan con lsattr.",
+    "examples": [
+      {
+        "cmd": "sudo chattr +i config.ini",
+        "desc": "Hace el archivo inmutable: ni root lo puede modificar ni borrar."
+      },
+      {
+        "cmd": "sudo chattr -i config.ini",
+        "desc": "Quita el atributo para poder volver a editarlo."
+      },
+      {
+        "cmd": "sudo chattr +a registro.log",
+        "desc": "Permite solo agregar líneas al final del archivo."
+      }
+    ],
+    "security": "Algunos atacantes usan chattr +i para que no puedas borrar su clave en authorized_keys o su tarea de cron, así que si root no puede borrar un archivo, revisá sus atributos con lsattr."
+  },
+  {
+    "id": "strings",
+    "category": "seguridad",
+    "level": "intermedio",
+    "clues": [
+      "Encuentra texto legible escondido dentro de archivos binarios.",
+      "Por defecto muestra secuencias de al menos 4 caracteres imprimibles; con -n cambiás ese mínimo.",
+      "Viene en binutils y es un primer paso clásico al analizar un ejecutable sospechoso."
+    ],
+    "summary": "Extrae las cadenas de texto imprimibles de un archivo binario.",
+    "explanation": "strings recorre un archivo y muestra las secuencias de caracteres imprimibles que encuentra, por defecto de 4 o más. En un ejecutable aparecen rutas, mensajes de error, URLs, nombres de funciones y a veces credenciales. Es un primer vistazo rápido, sin ejecutar el programa, antes de un análisis más profundo.",
+    "examples": [
+      {
+        "cmd": "strings /usr/bin/passwd | less",
+        "desc": "Recorre el texto legible del binario."
+      },
+      {
+        "cmd": "strings -n 8 muestra.bin | grep -iE 'http|/tmp'",
+        "desc": "Busca URLs y rutas temporales en un binario de muestra."
+      },
+      {
+        "cmd": "strings -t x firmware.bin",
+        "desc": "Muestra cada cadena con su posición en hexadecimal dentro del archivo."
+      }
+    ],
+    "security": "Un secreto compilado dentro de un binario no está oculto, porque strings lo encuentra en segundos: las claves van en la configuración o en un gestor de secretos, nunca en el código."
+  },
+  {
+    "id": "setcap",
+    "category": "permisos",
+    "level": "avanzado",
+    "clues": [
+      "Le da a un ejecutable un privilegio puntual de root sin hacerlo SUID.",
+      "Con él, un servidor puede escuchar en el puerto 80 sin correr como root.",
+      "Su hermano que consulta esos privilegios se llama igual, pero empieza con «get»."
+    ],
+    "summary": "Asigna capabilities de Linux a un ejecutable.",
+    "explanation": "En Linux, los poderes de root están divididos en capabilities, como CAP_NET_BIND_SERVICE para escuchar en puertos bajos o CAP_NET_RAW para crear sockets crudos. setcap le asigna una o más capabilities a un archivo ejecutable, que las obtiene al correr aunque lo lance un usuario común. Se consultan con getcap y se quitan con setcap -r.",
+    "examples": [
+      {
+        "cmd": "sudo setcap cap_net_bind_service=+ep /usr/local/bin/miservidor",
+        "desc": "Permite que el binario escuche en puertos menores a 1024 sin ser root."
+      },
+      {
+        "cmd": "sudo setcap -v cap_net_bind_service=+ep /usr/local/bin/miservidor",
+        "desc": "Verifica si el archivo ya tiene exactamente esas capabilities, sin cambiar nada."
+      },
+      {
+        "cmd": "sudo setcap -r /usr/local/bin/miservidor",
+        "desc": "Le quita todas las capabilities al archivo."
+      }
+    ],
+    "security": "Una capability como cap_setuid o cap_dac_override en un intérprete equivale a root, así que auditá los binarios con capabilities usando getcap -r / 2>/dev/null.",
+    "lab": "https://securitylabs.valentorassa.com/labs/linux-real/tu-root-no-es-root/"
+  },
+  {
+    "id": "netstat",
+    "category": "redes",
+    "level": "intermedio",
+    "clues": [
+      "Muestra conexiones de red, puertos en escucha y la tabla de ruteo.",
+      "La combinación -tulpn lista los puertos TCP y UDP en escucha con el proceso de cada uno.",
+      "Su reemplazo moderno en iproute2 tiene solo dos letras."
+    ],
+    "summary": "Muestra conexiones de red, puertos en escucha, rutas y estadísticas de interfaces.",
+    "explanation": "netstat lista los sockets del sistema: qué puertos están en escucha, qué conexiones están establecidas y qué proceso las abrió. También muestra la tabla de ruteo con -r y estadísticas por interfaz con -i. Es parte de net-tools, que muchas distribuciones ya no instalan por defecto; su reemplazo es ss, con opciones casi iguales.",
+    "examples": [
+      {
+        "cmd": "sudo netstat -tulpn",
+        "desc": "Lista los puertos TCP y UDP en escucha, con el PID y el programa de cada uno."
+      },
+      {
+        "cmd": "netstat -tn",
+        "desc": "Muestra las conexiones TCP activas, sin resolver nombres."
+      },
+      {
+        "cmd": "netstat -rn",
+        "desc": "Muestra la tabla de ruteo con direcciones numéricas."
+      }
+    ],
+    "security": "Revisar los puertos en escucha con netstat -tulpn, o con ss -tulpn, te muestra servicios que no sabías que estaban expuestos, sobre todo los que escuchan en 0.0.0.0 en lugar de 127.0.0.1."
+  },
+  {
+    "id": "nsenter",
+    "category": "contenedores",
+    "level": "avanzado",
+    "clues": [
+      "Te mete en los namespaces de otro proceso para ejecutar un comando ahí.",
+      "Con -t le pasás el PID y con -n entrás solo a su red.",
+      "Viene en util-linux y sirve para depurar un contenedor que no trae ni shell ni herramientas."
+    ],
+    "summary": "Ejecuta un programa dentro de los namespaces de otro proceso.",
+    "explanation": "Un contenedor es un proceso con sus propios namespaces de red, montajes, PID y usuarios. nsenter te deja correr un comando dentro de algunos o todos esos namespaces, usando el PID de un proceso que ya está ahí. Lo típico es entrar solo a la red de un contenedor para usar ss o tcpdump del host, aunque la imagen no los tenga.",
+    "examples": [
+      {
+        "cmd": "sudo nsenter -t 4321 -n ss -tlnp",
+        "desc": "Lista los puertos en escucha dentro de la red del proceso 4321, usando el ss del host."
+      },
+      {
+        "cmd": "sudo nsenter -t \"$(docker inspect -f '{{.State.Pid}}' web)\" -n ip addr",
+        "desc": "Muestra las interfaces de red que ve el contenedor web."
+      },
+      {
+        "cmd": "sudo nsenter -t 4321 -a sh",
+        "desc": "Abre una shell dentro de todos los namespaces del proceso 4321."
+      }
+    ],
+    "security": "Usar nsenter sobre procesos ajenos requiere root, y es la misma técnica con la que se salta de un contenedor privilegiado al host, por eso no corras contenedores con --privileged ni --pid=host sin necesidad.",
+    "lab": "https://securitylabs.valentorassa.com/labs/linux-real/contenedores-sin-magia/"
+  },
+  {
+    "id": "last",
+    "category": "sistema",
+    "level": "intermedio",
+    "clues": [
+      "Muestra el historial de inicios de sesión del equipo.",
+      "Indica usuario, terminal, IP de origen y cuánto duró cada sesión.",
+      "Lee /var/log/wtmp o, en distribuciones recientes, la base de datos de wtmpdb."
+    ],
+    "summary": "Muestra los inicios de sesión y reinicios recientes del sistema.",
+    "explanation": "last lee el registro de sesiones y lista quién entró, desde qué terminal o IP, cuándo y por cuánto tiempo. También registra los reinicios del equipo. En distribuciones recientes, como Debian 13, el archivo clásico /var/log/wtmp fue reemplazado por wtmpdb, pero el comando se sigue llamando igual.",
+    "examples": [
+      {
+        "cmd": "last -n 10",
+        "desc": "Muestra los últimos 10 inicios de sesión."
+      },
+      {
+        "cmd": "last ana",
+        "desc": "Muestra solo las sesiones del usuario ana."
+      },
+      {
+        "cmd": "last -i",
+        "desc": "Muestra las direcciones IP de origen en lugar de nombres de host."
+      }
+    ],
+    "security": "Después de un incidente, last te muestra accesos desde IPs u horarios que no esperabas, pero un atacante con root puede borrar ese registro, por eso conviene enviar los logs de autenticación a otro equipo."
+  },
+  {
+    "id": "iptables",
+    "category": "seguridad",
+    "level": "avanzado",
+    "clues": [
+      "Define qué paquetes de red se aceptan, se descartan o se redirigen en el kernel.",
+      "Organiza las reglas en cadenas como INPUT, OUTPUT y FORWARD.",
+      "Su reemplazo moderno es nft, pero muchas guías siguen usando su sintaxis, con -A INPUT y -j DROP."
+    ],
+    "summary": "Administra las reglas del firewall de Linux para IPv4.",
+    "explanation": "iptables carga reglas en netfilter, el filtro de paquetes del kernel: cada paquete recorre una cadena, como INPUT para lo que llega al equipo, y la primera regla que coincide decide si se acepta (ACCEPT), se descarta (DROP) o se rechaza (REJECT). Si ninguna regla coincide, se aplica la política por defecto de la cadena. En las distribuciones actuales el comando suele ser iptables-nft, que traduce las reglas a nftables por debajo.",
+    "examples": [
+      {
+        "cmd": "sudo iptables -L -n -v --line-numbers",
+        "desc": "Lista las reglas con contadores y número de línea, sin resolver nombres."
+      },
+      {
+        "cmd": "sudo iptables -A INPUT -p tcp --dport 22 -s 192.0.2.0/24 -j ACCEPT",
+        "desc": "Permite SSH solo desde una red de administración."
+      },
+      {
+        "cmd": "sudo iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT",
+        "desc": "Acepta las respuestas a conexiones que inició el propio equipo."
+      }
+    ],
+    "security": "Antes de poner la política por defecto en DROP en un servidor remoto, agregá la regla que permite tu conexión y dejá programado un rollback, porque es muy fácil dejarte afuera."
+  }
+]
