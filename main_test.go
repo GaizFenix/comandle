@@ -10,7 +10,7 @@ import (
 	"github.com/ValentinTorassa/comandle/internal/game"
 )
 
-var launchDay = time.Date(2026, 10, 21, 15, 0, 0, 0, game.Argentina)
+var launchDay = time.Date(2026, 10, 20, 15, 0, 0, 0, game.Argentina)
 
 func TestEmbeddedDataLoads(t *testing.T) {
 	b, err := game.Load(data.Commands, data.Allowed)

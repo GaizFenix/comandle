@@ -1,15 +1,18 @@
 # comandle
 
-Adiviná el comando del día en 6 intentos, desde la terminal. Cuando termina la
+Adiviná el comando del día en 6 intentos, desde la terminal o en el navegador. Cuando termina la
 ronda, comandle te explica el comando: qué hace, tres ejemplos y qué tener en
 cuenta de seguridad.
+
+**Jugalo en el navegador: https://valentintorassa.github.io/comandle/** (mismo comando del día que la terminal).
 
 ![Una ronda de práctica: kill, ping y nmap, y la ficha que explica nmap](docs/demo.gif)
 
 ## Cómo se juega
 
 - Todos los días hay un comando nuevo de Linux o de seguridad, el mismo para
-  todos. Cambia a medianoche, hora de Argentina.
+  todos, en la terminal y en la web. Cambia a medianoche, hora de Argentina. El
+  #1 fue el 20/10/2026.
 - Escribís un comando con la misma cantidad de letras. Cada letra queda
   **verde** si está en su lugar, **amarilla** si está en otra posición y **gris**
   si no está.
@@ -55,10 +58,12 @@ así: `[x]` en su lugar, `(x)` en otra posición.
 
 ## Privacidad
 
-comandle no se conecta a internet. Tus estadísticas quedan en un archivo que
+La versión de terminal no se conecta a internet y la web no usa cookies ni
+seguimiento. En la terminal, tus estadísticas quedan en un archivo que
 solo puede leer tu usuario: `$XDG_STATE_HOME/comandle/stats.json` si definiste
 esa variable, y si no `~/.config/comandle/` en Linux o
-`~/Library/Application Support/comandle/` en macOS.
+`~/Library/Application Support/comandle/` en macOS. En la web quedan en el
+almacenamiento local de tu navegador.
 
 ## Sumá un comando
 

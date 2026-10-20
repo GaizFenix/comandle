@@ -1,7 +1,7 @@
 # Sumar un comando a comandle
 
 Cada comando del juego es una entrada de [`data/commands.json`](data/commands.json).
-El orden del archivo es el calendario: la primera entrada fue el día #1, la
+El orden del archivo es el calendario: la primera entrada fue el día #1 (20/10/2026), la
 segunda el #2, y así. Por eso:
 
 - **Agregá siempre al final.** Nunca reordenes ni borres entradas: cambiaría el

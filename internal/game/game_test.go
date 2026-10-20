@@ -59,20 +59,20 @@ func TestDayNumber(t *testing.T) {
 		at   time.Time
 		want int
 	}{
-		{time.Date(2026, 10, 20, 23, 59, 0, 0, Argentina), 1}, // before launch: day 1
-		{time.Date(2026, 10, 21, 0, 0, 0, 0, Argentina), 1},
-		{time.Date(2026, 10, 21, 23, 59, 59, 0, Argentina), 1},
-		{time.Date(2026, 10, 22, 2, 59, 0, 0, time.UTC), 1}, // still the 21st in Argentina
-		{time.Date(2026, 10, 22, 3, 0, 0, 0, time.UTC), 2},
-		{time.Date(2027, 1, 1, 12, 0, 0, 0, Argentina), 73},
+		{time.Date(2026, 10, 19, 23, 59, 0, 0, Argentina), 1}, // before launch: day 1
+		{time.Date(2026, 10, 20, 0, 0, 0, 0, Argentina), 1},
+		{time.Date(2026, 10, 20, 23, 59, 59, 0, Argentina), 1},
+		{time.Date(2026, 10, 21, 2, 59, 0, 0, time.UTC), 1}, // still the 20th in Argentina
+		{time.Date(2026, 10, 21, 3, 0, 0, 0, time.UTC), 2},
+		{time.Date(2027, 1, 1, 12, 0, 0, 0, Argentina), 74},
 	}
 	for _, tc := range cases {
 		if got := DayNumber(tc.at); got != tc.want {
 			t.Errorf("DayNumber(%v) = %d, want %d", tc.at, got, tc.want)
 		}
 	}
-	next := NextDay(time.Date(2026, 10, 21, 18, 0, 0, 0, Argentina))
-	if !next.Equal(time.Date(2026, 10, 22, 0, 0, 0, 0, Argentina)) {
+	next := NextDay(time.Date(2026, 10, 20, 18, 0, 0, 0, Argentina))
+	if !next.Equal(time.Date(2026, 10, 21, 0, 0, 0, 0, Argentina)) {
 		t.Errorf("NextDay = %v", next)
 	}
 }

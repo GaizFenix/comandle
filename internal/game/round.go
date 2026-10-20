@@ -23,7 +23,7 @@ const (
 // midnight Argentina time for everyone; Argentina has no daylight saving.
 var (
 	Argentina = time.FixedZone("ART", -3*60*60)
-	Launch    = time.Date(2026, time.October, 21, 0, 0, 0, 0, Argentina)
+	Launch    = time.Date(2026, time.October, 20, 0, 0, 0, 0, Argentina)
 )
 
 // DayNumber returns the comandle number for an instant (1 on launch day).

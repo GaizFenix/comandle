@@ -1,0 +1,203 @@
+/* comandle web: Dracula, like the terminal version. Single dark theme on
+   purpose: it is a terminal game. */
+:root {
+  --page: #1e1f29;
+  --surface: #282a36;
+  --line: #44475a;
+  --fg: #f8f8f2;
+  --muted: #6272a4;
+  --cyan: #8be9fd;
+  --green: #50fa7b;
+  --orange: #ffb86c;
+  --pink: #ff79c6;
+  --purple: #bd93f9;
+  --yellow: #f1fa8c;
+  --ink: #1e1f29;
+  --mono: "JetBrains Mono", "JetBrainsMono Nerd Font Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--fg);
+  font: 15px/1.55 var(--mono);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+a { color: var(--cyan); }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
+
+.top {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-block: 14px 10px;
+  border-bottom: 1px solid var(--line);
+}
+h1 { margin: 0; font-size: 24px; letter-spacing: 0.5px; }
+.brand { color: var(--pink); }
+.day { color: var(--muted); font-size: 16px; }
+.icon {
+  width: 36px; height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: pointer;
+  color: var(--purple);
+}
+
+main {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding-block: 16px 24px;
+  flex: 1;
+}
+.meta { margin: 0; color: var(--muted); }
+.meta b { color: var(--purple); font-weight: 600; }
+.meta i { color: var(--cyan); font-style: normal; }
+
+.board { display: grid; gap: 6px; }
+.row { display: flex; gap: 6px; justify-content: center; }
+.tile {
+  width: var(--tile, 52px);
+  height: var(--tile, 52px);
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--line);
+  border-radius: 6px;
+  font-size: calc(var(--tile, 52px) * 0.46);
+  font-weight: 700;
+  text-transform: lowercase;
+  background: transparent;
+}
+.tile.filled { border-color: var(--muted); }
+.tile.absent { background: var(--line); border-color: var(--line); }
+.tile.present { background: var(--yellow); border-color: var(--yellow); color: var(--ink); }
+.tile.correct { background: var(--green); border-color: var(--green); color: var(--ink); }
+.row.shake { animation: shake 0.3s; }
+@keyframes shake {
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+
+.clues { margin: 0; padding: 0; list-style: none; width: 100%; display: grid; gap: 6px; }
+.clues li { background: var(--surface); border-left: 3px solid var(--orange); padding: 8px 12px; border-radius: 0 6px 6px 0; }
+.clues b { color: var(--orange); font-weight: 600; }
+
+.toast { margin: 0; min-height: 1.5em; color: var(--orange); text-align: center; }
+
+.keyboard { width: 100%; display: grid; gap: 6px; }
+.krow { display: flex; gap: 5px; justify-content: center; }
+.key {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 44px;
+  height: 46px;
+  border: 0;
+  border-radius: 6px;
+  background: #3a3c4e;
+  cursor: pointer;
+  font-weight: 600;
+}
+.key.wide { max-width: 72px; flex: 1.6 1 0; font-size: 13px; }
+.key.absent { background: #22232d; color: var(--muted); }
+.key.present { background: var(--yellow); color: var(--ink); }
+.key.correct { background: var(--green); color: var(--ink); }
+.key:active { transform: translateY(1px); }
+
+.end {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+}
+.end h2 { margin: 0; font-size: 20px; }
+.end .won { color: var(--green); }
+.end .lost { color: var(--orange); }
+.card-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+.card-title .id { color: var(--green); font-size: 22px; font-weight: 700; }
+.card-title .tags { color: var(--muted); }
+.summary { font-weight: 600; margin: 0; }
+.end p { margin: 0; }
+.examples { display: grid; gap: 8px; }
+.example pre {
+  margin: 0;
+  padding: 8px 10px;
+  background: var(--page);
+  border-radius: 6px;
+  overflow-x: auto;
+  color: var(--cyan);
+}
+.example pre::before { content: "$ "; color: var(--green); }
+.example .desc { color: var(--muted); font-size: 13px; margin-top: 3px; }
+.security b { color: var(--pink); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.primary, .secondary {
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.primary { background: var(--purple); color: var(--ink); }
+.secondary { background: transparent; border: 1px solid var(--line); color: var(--fg); }
+.countdown { color: var(--muted); }
+.install code, dialog code { background: var(--page); padding: 2px 6px; border-radius: 4px; word-break: break-all; }
+
+footer {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px;
+  padding-block: 12px 18px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+dialog {
+  max-width: min(460px, calc(100vw - 32px));
+  background: var(--surface);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px;
+}
+dialog::backdrop { background: rgba(10, 10, 16, 0.7); }
+dialog h2 { margin-top: 0; color: var(--pink); }
+dialog h3 { color: var(--purple); font-size: 14px; }
+dialog ul { padding-left: 18px; }
+.chip { padding: 0 6px; border-radius: 4px; color: var(--ink); }
+.chip.correct { background: var(--green); }
+.chip.present { background: var(--yellow); }
+.chip.absent { background: var(--line); color: var(--fg); }
+.numbers { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; text-align: center; }
+.numbers b { display: block; font-size: 22px; color: var(--cyan); font-variant-numeric: tabular-nums; }
+.numbers span { color: var(--muted); font-size: 12px; }
+.dist { display: grid; gap: 4px; }
+.bar { display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.bar i { display: block; height: 18px; background: var(--purple); border-radius: 3px; min-width: 18px; color: var(--ink); font-style: normal; font-size: 12px; text-align: right; padding-right: 4px; }
+.note { color: var(--muted); font-size: 12px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .row.shake { animation: none; }
+}
