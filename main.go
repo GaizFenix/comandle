@@ -10,6 +10,7 @@ import (
 	"io"
 	"math/rand/v2"
 	"os"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -60,7 +61,7 @@ func run(args []string, in io.Reader, out io.Writer, now time.Time) int {
 	case "stats", "estadisticas", "estadísticas":
 		return showStats(u)
 	case "version", "--version", "-v":
-		fmt.Fprintln(out, "comandle", version)
+		fmt.Fprintln(out, "comandle", currentVersion())
 		return 0
 	case "ayuda", "help", "--help", "-h":
 		help(out)
@@ -69,6 +70,18 @@ func run(args []string, in io.Reader, out io.Writer, now time.Time) int {
 		help(out)
 		return 2
 	}
+}
+
+// currentVersion is the release tag for release binaries, and the module
+// version Go records for `go install ...@v0.1.0` builds.
+func currentVersion() string {
+	if version != "dev" {
+		return version
+	}
+	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return info.Main.Version
+	}
+	return version
 }
 
 func help(out io.Writer) {
