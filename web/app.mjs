@@ -369,6 +369,7 @@ function paintPosibles() {
   $("pos-all").setAttribute("aria-pressed", String(posMode === "all"));
   $("pos-all").textContent = `todos los de ${len} letras`;
   $("pos-open-n").textContent = posibles(game.fit.length);
+  $("pos-open").hidden = over();
   const box = $("pos-list");
   box.replaceChildren();
   if (!list.length) {
@@ -390,7 +391,7 @@ function paintPosibles() {
 function paintSuggest() {
   const box = $("sug-list");
   box.replaceChildren();
-  if (over()) return;
+  if (over() || busy) return;
   const max = phone() ? 3 : 6;
   const base = comp ? comp.base : game.current;
   const items = comp ? comp.list : base ? game.fit.filter((w) => w.startsWith(base)) : [];
@@ -583,7 +584,8 @@ function submit(len) {
   const row = game.guesses.length - 1;
   paintBoard(row);
   paintPrompt();
-  $("sug-list").replaceChildren();
+  paintSuggest();
+  paintPosibles();
   const quick = reduced();
   if (!quick) for (let i = 0; i < len; i++) setTimeout(() => sound.play("flip"), i * STAGGER + FLIP / 2);
   setTimeout(
@@ -1111,8 +1113,12 @@ function renderArchive(n) {
 // ------------------------------------------------------------------ wiring
 
 function wire() {
-  const noFocus = (e) => e.preventDefault();
-  for (const id of ["keyboard", "sug-list", "pos-list"]) $(id).addEventListener("mousedown", noFocus);
+  // A mouse click on the header or game controls should not take focus away
+  // from typing (tab completes while the page has focus). Keyboard users
+  // still reach every button with tab from the address bar or a dialog.
+  document.addEventListener("mousedown", (e) => {
+    if (e.target instanceof Element && e.target.closest(".top button, .game button")) e.preventDefault();
+  });
   $("keyboard").addEventListener("click", (e) => {
     const key = e.target.closest("button")?.dataset.key;
     if (key) press(key);

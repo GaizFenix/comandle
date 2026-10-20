@@ -133,6 +133,7 @@ button:disabled { cursor: default; }
   position: absolute;
   inset: 3px 5px var(--lift) 5px;
   border-radius: calc(var(--r) - 3px);
+  background: linear-gradient(180deg, var(--side) 0%, var(--top) 38%, var(--top) 70%, var(--hi) 140%); /* no color-mix() */
   background:
     radial-gradient(95% 70% at 50% 108%, color-mix(in srgb, var(--hi) 75%, transparent), transparent 70%),
     linear-gradient(180deg, color-mix(in srgb, var(--top) 80%, #000) 0%, var(--top) 38%, var(--top) 100%);
@@ -1149,7 +1150,7 @@ dialog .kbd { display: inline-block; padding: 1px 6px 2px; border-radius: 5px; f
   }
   .pad { justify-self: center; }
   .over .game { grid-template-columns: minmax(0, 600px); }
-  .pos-list { max-height: 260px; }
+  .pos-list { max-height: 260px; min-height: 0; flex: none; }
 }
 
 @media (max-width: 599px) {
