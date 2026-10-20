@@ -1,0 +1,78 @@
+# comandle
+
+Adiviná el comando del día en 6 intentos, desde la terminal. Cuando termina la
+ronda, comandle te explica el comando: qué hace, tres ejemplos y qué tener en
+cuenta de seguridad.
+
+![Una ronda de práctica: kill, ping y nmap, y la ficha que explica nmap](docs/demo.gif)
+
+## Cómo se juega
+
+- Todos los días hay un comando nuevo de Linux o de seguridad, el mismo para
+  todos. Cambia a medianoche, hora de Argentina.
+- Escribís un comando con la misma cantidad de letras. Cada letra queda
+  **verde** si está en su lugar, **amarilla** si está en otra posición y **gris**
+  si no está.
+- Ves la categoría desde el principio (archivos, redes, permisos...). Con dos
+  intentos fallidos se destapa una pista, con cuatro otra y con cinco la última.
+- Solo valen nombres de comandos reales: la lista está en
+  [`data/allowed.txt`](data/allowed.txt).
+- Al final copiás el resultado para compartirlo sin spoilers:
+
+```
+comandle #1 4/6
+⬛🟨⬛⬛⬛
+🟩⬛🟨⬛⬛
+🟩🟩⬛🟩⬛
+🟩🟩🟩🟩🟩
+```
+
+## Instalación
+
+Con Go 1.27 o superior:
+
+```bash
+go install github.com/ValentinTorassa/comandle@latest
+```
+
+O bajá el binario para Linux, macOS o Windows desde
+[Releases](https://github.com/ValentinTorassa/comandle/releases) y verificá su
+SHA256 contra `SHA256SUMS`.
+
+## Comandos
+
+```bash
+comandle                  # el comandle de hoy
+comandle practica         # una ronda al azar que no suma a tus estadísticas
+comandle practica nmap    # practicá un comando puntual (sirve para dar en clase)
+comandle explicar chmod   # la ficha de cualquier comando de la lista
+comandle lista            # los comandos de los días que ya pasaron
+comandle stats            # tus estadísticas y tu racha
+```
+
+Sin colores (`NO_COLOR=1` o salida que no es una terminal), las letras se marcan
+así: `[x]` en su lugar, `(x)` en otra posición.
+
+## Privacidad
+
+comandle no se conecta a internet. Tus estadísticas quedan en un archivo que
+solo puede leer tu usuario: `$XDG_STATE_HOME/comandle/stats.json` si definiste
+esa variable, y si no `~/.config/comandle/` en Linux o
+`~/Library/Application Support/comandle/` en macOS.
+
+## Sumá un comando
+
+La lista crece con la comunidad. Cada comando es una entrada en
+[`data/commands.json`](data/commands.json) con pistas, explicación, ejemplos y
+una nota de seguridad. Los pasos están en [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## English
+
+comandle is a daily Wordle-like game for Linux and security commands, played in
+the terminal and written in Spanish. When a round ends it explains the command
+with examples and a security note. No network access, no telemetry; stats stay
+in a local file. Install with `go install github.com/ValentinTorassa/comandle@latest`.
+
+## Licencia
+
+[Apache-2.0](LICENSE). Hecho por [VT Security](https://valentorassa.com).
