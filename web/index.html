@@ -3,58 +3,165 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'">
   <meta name="referrer" content="no-referrer">
   <title>comandle</title>
   <meta name="description" content="Adiviná el comando de Linux o seguridad del día en 6 intentos. Al final te lo explica, con ejemplos y una nota de seguridad.">
   <meta property="og:title" content="comandle">
   <meta property="og:description" content="Adiviná el comando de Linux o seguridad del día en 6 intentos.">
-  <meta name="theme-color" content="#282a36">
+  <meta name="theme-color" content="#121319">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="fonts/martian-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="style.css">
   <script type="module" src="app.mjs"></script>
 </head>
 <body>
-  <header class="top">
-    <button class="icon" id="open-help" type="button" aria-label="Cómo se juega">?</button>
-    <h1><span class="brand">comandle</span> <span class="day" id="day"></span></h1>
-    <button class="icon" id="open-stats" type="button" aria-label="Estadísticas">▤</button>
-  </header>
+  <div class="tmux" role="group" aria-label="Tus estadísticas">
+    <span class="sess" aria-hidden="true">comandle</span>
+    <span class="hint" aria-hidden="true">enter enviar · tab completar · ? ayuda</span>
+    <span class="tstats" id="tmux-stats"></span>
+  </div>
 
-  <main>
-    <p class="meta" id="meta">Cargando…</p>
-    <div class="board" id="board" role="grid" aria-label="Tablero"></div>
-    <ol class="clues" id="clues" aria-live="polite"></ol>
-    <p class="toast" id="toast" role="status" aria-live="assertive"></p>
-    <section class="end" id="end" hidden></section>
-    <div class="keyboard" id="keyboard" aria-label="Teclado"></div>
-  </main>
+  <div class="wrap">
+    <header class="top">
+      <div class="brand">
+        <span class="cap c-artisan logo" aria-hidden="true"><span class="lg">&gt;_</span></span>
+        <h1><span class="word">comandle</span> <span class="round" id="day"></span></h1>
+      </div>
+      <nav class="tools" aria-label="Menú">
+        <button class="cap c-mod" id="open-help" type="button" aria-label="Cómo se juega" title="Cómo se juega (?)"><span class="lg">?</span></button>
+        <button class="cap c-mod sound" id="toggle-sound" type="button" aria-pressed="false" aria-label="Sonido de teclas" title="Sonido de teclas">
+          <svg class="on" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 8v4h3l4 3.5v-11L6 8z"/><path d="M13.5 7.2a4 4 0 0 1 0 5.6M15.8 5a7 7 0 0 1 0 10"/></svg>
+          <svg class="off" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 8v4h3l4 3.5v-11L6 8z"/><path d="m13.5 8 4 4M17.5 8l-4 4"/></svg>
+        </button>
+        <button class="cap c-mod labeled" id="open-archive" type="button" aria-label="Comandos anteriores" title="Comandos anteriores">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4.5h12M5 8h10v8.5H5zM8.5 11h3"/></svg>
+          <span>anteriores</span>
+        </button>
+        <button class="cap c-mod labeled" id="open-stats" type="button" aria-label="Estadísticas" title="Estadísticas">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 16v-6M10 16V4M16 16V8"/></svg>
+          <span>estadísticas</span>
+        </button>
+      </nav>
+    </header>
 
-  <footer>
-    <span>Hecho por <a href="https://valentorassa.com" rel="noopener">VT Security</a></span>
-    <span><a href="https://github.com/ValentinTorassa/comandle" rel="noopener">código</a> · sin cookies ni seguimiento</span>
-  </footer>
+    <div class="layout" id="layout">
+      <main class="game" id="game">
+        <div class="prompt">
+          <p class="cmdline" aria-hidden="true"><span class="path">~/juegos</span> <span class="sym">$</span> <span class="cmd" id="prompt-cmd">comandle</span><span class="arg" id="prompt-arg"></span><span class="cursor"></span></p>
+          <p class="meta" id="meta">Cargando…</p>
+        </div>
 
-  <dialog id="help">
-    <h2>Cómo se juega</h2>
+        <div class="pad" id="pad">
+          <span class="screw a"></span><span class="screw b"></span><span class="screw c"></span><span class="screw d"></span>
+          <div class="oled" id="oled"></div>
+          <div class="plate board" id="board" role="grid" aria-label="Tablero"></div>
+          <p class="engrave" aria-hidden="true">COMANDLE · MACRO</p>
+          <p class="toast" id="toast" role="status" aria-live="assertive"></p>
+        </div>
+
+        <div class="side" id="side">
+          <section class="clues" aria-label="Pistas">
+            <h2 class="label">pistas</h2>
+            <ol id="clues" aria-live="polite"></ol>
+          </section>
+
+          <section class="posibles" id="posibles" aria-labelledby="pos-title">
+            <div class="pos-head">
+              <h2 id="pos-title">Posibles comandos</h2>
+              <span class="pos-count" id="pos-count" aria-live="polite"></span>
+              <button class="cap c-mod pos-close" id="pos-close" type="button" aria-label="Cerrar la lista"><span class="lg">×</span></button>
+            </div>
+            <div class="seg" role="group" aria-label="Qué mostrar">
+              <button type="button" id="pos-fit" aria-pressed="true">solo los que encajan</button>
+              <button type="button" id="pos-all" aria-pressed="false">todos</button>
+            </div>
+            <div class="pos-list" id="pos-list" role="group" aria-label="Lista de posibles"></div>
+            <p class="pos-note">Tocá uno para escribirlo. Enter lo envía.</p>
+          </section>
+        </div>
+
+        <div class="suggest" id="suggest">
+          <span class="sug-tag" aria-hidden="true">tab</span>
+          <div class="sug-list" id="sug-list" role="group" aria-label="Autocompletar"></div>
+          <button class="pos-open" id="pos-open" type="button" aria-controls="posibles" aria-expanded="false">
+            <span id="pos-open-n"></span>
+            <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 7.5 6 4.5l3 3"/></svg>
+          </button>
+        </div>
+
+        <div class="kb" id="kb">
+          <div class="kb-plate" id="keyboard" role="group" aria-label="Teclado"></div>
+        </div>
+
+        <section class="legend" aria-label="Referencia de colores">
+          <ul>
+            <li><span class="cap c-mint" aria-hidden="true"><span class="lg">a</span><i class="home"></i></span>en su lugar<small>barra</small></li>
+            <li><span class="cap c-lemon" aria-hidden="true"><span class="lg">a</span><i class="cue"></i></span>en otra posición<small>flechas</small></li>
+            <li><span class="cap c-graphite is-absent" aria-hidden="true"><span class="lg">a</span></span>no está<small>hundida</small></li>
+          </ul>
+        </section>
+      </main>
+
+      <article class="sheet" id="end" aria-label="Resultado" hidden></article>
+
+      <footer class="foot">
+        <span>Hecho por <a href="https://valentorassa.com" rel="noopener">VT Security</a></span>
+        <span><a href="https://github.com/ValentinTorassa/comandle" rel="noopener">código</a> · sin cookies ni seguimiento</span>
+      </footer>
+    </div>
+  </div>
+
+  <div class="scrim" id="scrim" hidden></div>
+
+  <dialog id="help" aria-labelledby="help-title">
+    <div class="dlg-head">
+      <h2 id="help-title">Cómo se juega</h2>
+      <form method="dialog"><button class="cap c-mod x" aria-label="Cerrar"><span class="lg">×</span></button></form>
+    </div>
     <p>Adiviná el comando de Linux o seguridad del día en 6 intentos. Es el mismo para todos y cambia a medianoche, hora de Argentina.</p>
+    <div class="tut" aria-hidden="true">
+      <div class="tut-row" id="tut-row"></div>
+    </div>
     <ul>
       <li>Escribí un comando real con la misma cantidad de letras.</li>
-      <li><span class="chip correct">verde</span> la letra está en su lugar, <span class="chip present">amarilla</span> está en otra posición y <span class="chip absent">gris</span> no está.</li>
+      <li>
+        <ul class="tut-key">
+          <li><span class="cap c-mint" aria-hidden="true"><span class="lg">e</span><i class="home"></i></span><span><b>verde</b> la letra está en su lugar (tiene una barrita),</span></li>
+          <li><span class="cap c-lemon" aria-hidden="true"><span class="lg">c</span><i class="cue"></i></span><span><b>amarilla</b> está en otra posición (flechas)</span></li>
+          <li><span class="cap c-graphite is-absent" aria-hidden="true"><span class="lg">h</span></span><span>y <b>gris</b> no está (queda hundida).</span></li>
+        </ul>
+      </li>
       <li>Ves la categoría desde el principio. Con 2 intentos fallidos se destapa una pista, con 4 otra y con 5 la última.</li>
+      <li>Si te trabás, <b>Posibles comandos</b> lista las palabras que todavía encajan con lo que sabés. Tocá una para escribirla, o empezá a escribir y apretá <span class="kbd">tab</span> para completar.</li>
       <li>Cuando termina, te explica el comando con ejemplos y una nota de seguridad.</li>
     </ul>
+    <p>Atajos: <span class="kbd">?</span> esta ayuda, <span class="kbd">tab</span> y las flechas recorren las sugerencias, <span class="kbd">esc</span> cierra.</p>
     <p>También se juega en la terminal: <code>go install github.com/ValentinTorassa/comandle@latest</code></p>
-    <form method="dialog"><button class="primary">Jugar</button></form>
+    <form method="dialog"><button class="cap c-artisan wide-btn"><span>Jugar</span></button></form>
   </dialog>
 
-  <dialog id="stats">
-    <h2>Estadísticas</h2>
+  <dialog id="stats" aria-labelledby="stats-title">
+    <div class="dlg-head">
+      <h2 id="stats-title">Estadísticas</h2>
+      <form method="dialog"><button class="cap c-mod x" aria-label="Cerrar"><span class="lg">×</span></button></form>
+    </div>
     <div class="numbers" id="stats-numbers"></div>
+    <h3>Últimos resultados</h3>
+    <div class="history" id="stats-history"></div>
     <h3>Intentos por victoria</h3>
     <div class="dist" id="stats-dist"></div>
     <p class="note">Se guardan solo en este navegador.</p>
-    <form method="dialog"><button class="primary">Cerrar</button></form>
+    <form method="dialog"><button class="cap c-artisan wide-btn"><span>Cerrar</span></button></form>
+  </dialog>
+
+  <dialog id="archive" class="wide" aria-labelledby="archive-title">
+    <div class="dlg-head">
+      <h2 id="archive-title">Comandos anteriores</h2>
+      <form method="dialog"><button class="cap c-mod x" aria-label="Cerrar"><span class="lg">×</span></button></form>
+    </div>
+    <div id="archive-body"></div>
   </dialog>
 </body>
 </html>
