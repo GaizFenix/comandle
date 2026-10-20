@@ -6,7 +6,6 @@ import {
   CORRECT,
   MAX_TRIES,
   PRESENT,
-  candidates,
   cluesVisible,
   daily,
   dayNumber,
@@ -83,7 +82,6 @@ let words = [];
 let game = null;
 let busy = false;
 let comp = null; // tab completion in progress: { base, list, idx }
-let posMode = "fit";
 let clueSel = -1;
 let shownClues = 0;
 let countdownTimer = 0;
@@ -154,7 +152,6 @@ function setupRound() {
 // ------------------------------------------------------------------ rendering
 
 function render() {
-  game.fit = candidates(game.pool, game.guesses, game.answer.id);
   $("day").textContent = dayLabel();
   paintMeta();
   paintOled();
@@ -169,7 +166,7 @@ function paintInput() {
   paintPrompt();
   paintBoard();
   paintSuggest();
-  paintPosibles();
+  paintWords();
 }
 
 function paintPrompt() {
@@ -184,14 +181,11 @@ function paintMeta() {
   const meta = $("meta");
   meta.classList.remove("err");
   meta.replaceChildren(
-    "categoría ",
     el("b", null, game.answer.category),
     el("span", "dot"),
-    el("b", null, String(answerLen())),
-    " letras",
+    `${answerLen()} letras`,
     el("span", "dot"),
-    "nivel ",
-    el("b", null, game.answer.level),
+    game.answer.level,
   );
 }
 
@@ -316,7 +310,7 @@ function paintClues() {
       const pips = el("span", "pips");
       pips.setAttribute("aria-hidden", "true");
       for (let k = 0; k < CLUE_AT[i]; k++) pips.append(el("i", k < miss ? "on" : null));
-      line.append(el("p", "lockmsg", `se destapa con ${CLUE_AT[i]} fallos`), pips);
+      line.append(el("p", "lockmsg", `con ${CLUE_AT[i]} fallos`), pips);
       body.append(el("span", "redact"), line);
     }
     li.append(num, body);
@@ -327,64 +321,37 @@ function paintClues() {
   ol.append(sum);
 }
 
-// What the guesses so far say about each position and letter.
-function knowledge() {
-  const id = game.answer.id;
-  const fixed = [];
-  for (const g of game.guesses) {
-    score(g, id).forEach((m, i) => {
-      if (m === CORRECT) fixed[i] = Array.from(g)[i];
-    });
-  }
-  return { fixed, state: letterState(game.guesses, id) };
-}
-
-function chip(word, known) {
-  const b = el("button", "pchip");
+// Every valid command of the answer's length, narrowed only by what is being
+// typed. It never uses the marks: it is a reference, not a solver.
+function chip(word, prefix) {
+  const b = el("button", "wchip");
   b.type = "button";
   b.tabIndex = -1;
   b.setAttribute("aria-label", word);
-  Array.from(word).forEach((ch, i) => {
-    let cls = null;
-    if (known.fixed[i] === ch) cls = "k";
-    else if (known.state.get(ch) === ABSENT) cls = "x";
-    else if (known.state.has(ch)) cls = "p";
-    b.append(cls ? el("i", cls, ch) : ch);
-  });
+  if (prefix) b.append(el("b", null, prefix), word.slice(prefix.length));
+  else b.append(word);
   b.addEventListener("click", () => pick(word));
   return b;
 }
 
-const posibles = (n) => `${n} ${n === 1 ? "posible" : "posibles"}`;
-
-function paintPosibles() {
+function paintWords() {
   const len = answerLen();
-  const pool = posMode === "fit" ? game.fit : game.pool;
+  const pool = game.pool;
   const prefix = game.current;
   const list = prefix ? pool.filter((w) => w.startsWith(prefix)) : pool;
-  let count = posMode === "fit" ? posibles(pool.length) : `${pool.length} de ${len} letras`;
-  if (prefix) count += ` · ${list.length} con «${prefix}»`;
-  $("pos-count").textContent = count;
-  $("pos-fit").setAttribute("aria-pressed", String(posMode === "fit"));
-  $("pos-all").setAttribute("aria-pressed", String(posMode === "all"));
-  $("pos-all").textContent = `todos los de ${len} letras`;
-  $("pos-open-n").textContent = posibles(game.fit.length);
-  $("pos-open").hidden = over();
-  const box = $("pos-list");
+  $("words-title").textContent = `comandos de ${len} letras`;
+  $("words-count").textContent = prefix ? `${list.length}/${pool.length}` : String(pool.length);
+  $("words-open-n").textContent = String(pool.length);
+  $("words-open").setAttribute("aria-label", `Ver los comandos de ${len} letras`);
+  $("words-open").hidden = over();
+  const box = $("words-list");
   box.replaceChildren();
   if (!list.length) {
-    box.append(
-      el(
-        "p",
-        "pos-empty",
-        posMode === "fit" ? `Ningún posible empieza con «${prefix}».` : `Ninguna palabra de ${len} letras empieza con «${prefix}».`,
-      ),
-    );
+    box.append(el("p", "words-empty", `Ninguno empieza con «${prefix}».`));
     return;
   }
-  const known = knowledge();
   const frag = document.createDocumentFragment();
-  for (const w of list) frag.append(chip(w, known));
+  for (const w of list) frag.append(chip(w, prefix));
   box.append(frag);
 }
 
@@ -394,12 +361,8 @@ function paintSuggest() {
   if (over() || busy) return;
   const max = phone() ? 3 : 6;
   const base = comp ? comp.base : game.current;
-  const items = comp ? comp.list : base ? game.fit.filter((w) => w.startsWith(base)) : [];
-  if (!items.length) {
-    const hint = base ? `ningún posible empieza con «${base}»` : phone() ? "" : "escribí y apretá tab para completar";
-    if (hint) box.append(el("span", "sug-hint", hint));
-    return;
-  }
+  const items = comp ? comp.list : base ? game.pool.filter((w) => w.startsWith(base)) : [];
+  if (!items.length) return;
   const start = comp ? Math.max(0, Math.min(comp.idx - max + 1, items.length - max)) : 0;
   for (const w of items.slice(start, start + max)) {
     const b = el("button", `sug${comp && comp.list[comp.idx] === w ? " sel" : ""}`);
@@ -535,8 +498,8 @@ function pick(word) {
   closeDrawer();
 }
 
-// Shell-style completion: tab (or the arrows) cycles through the
-// candidates that start with what was typed, writing each one in the row.
+// Shell-style completion: tab (or the arrows) cycles through the valid
+// commands that start with what was typed, writing each one in the row.
 function canComplete() {
   return playing() && (comp || game.current);
 }
@@ -544,7 +507,7 @@ function canComplete() {
 function complete(step) {
   if (!comp) {
     const base = game.current;
-    const list = game.fit.filter((w) => w.startsWith(base));
+    const list = game.pool.filter((w) => w.startsWith(base));
     if (!list.length) {
       wobble();
       return;
@@ -558,7 +521,7 @@ function complete(step) {
   paintPrompt();
   paintBoard();
   paintSuggest();
-  paintPosibles();
+  paintWords();
 }
 
 function submit(len) {
@@ -585,7 +548,6 @@ function submit(len) {
   paintBoard(row);
   paintPrompt();
   paintSuggest();
-  paintPosibles();
   const quick = reduced();
   if (!quick) for (let i = 0; i < len; i++) setTimeout(() => sound.play("flip"), i * STAGGER + FLIP / 2);
   setTimeout(
@@ -683,16 +645,8 @@ function copyButton(cmd, codeNode) {
   return b;
 }
 
-function specRow(dl, term, content, cls) {
-  const row = el("div", cls);
-  const dd = el("dd");
-  dd.append(...(Array.isArray(content) ? content : [content]));
-  row.append(el("dt", null, term), dd);
-  dl.append(row);
-  return dd;
-}
-
-// The command explained as a man page laid out like a spec sheet.
+// The command explained like a man page: header line, name, summary,
+// explanation, examples to copy and the security note.
 function buildMan(c, n) {
   const box = el("div", "man");
   const head = el("div", "man-head");
@@ -702,13 +656,11 @@ function buildMan(c, n) {
 
   const title = el("h2", "man-title");
   const tags = el("span", "tags");
-  tags.append("· ", el("b", null, c.category), ` · ${c.level}${n ? ` · #${n}` : ""}`);
+  tags.append(el("b", null, c.category), ` · ${c.level}${n ? ` · #${n}` : ""}`);
   title.append(el("span", "id", c.id), tags);
 
-  const dl = el("dl", "spec");
-  specRow(dl, "NOMBRE", [el("b", null, c.id), ` — ${c.summary}`]).className = "lead";
-  specRow(dl, "DESCRIPCIÓN", c.explanation);
   const ex = el("ol", "ex");
+  ex.setAttribute("aria-label", "Ejemplos");
   for (const e of c.examples) {
     const li = el("li");
     const line = el("div", "code");
@@ -717,16 +669,17 @@ function buildMan(c, n) {
     li.append(line, el("p", null, e.desc));
     ex.append(li);
   }
-  specRow(dl, "EJEMPLOS", ex);
-  specRow(dl, "SEGURIDAD", el("div", "hazard", c.security), "warn");
+  const sec = el("p", "hazard", c.security);
+  sec.setAttribute("aria-label", `Seguridad: ${c.security}`);
+
+  box.append(head, title, el("p", "summary", c.summary), el("p", "explain", c.explanation), ex, sec);
   if (c.lab) {
     const a = el("a", "lab", "Practicalo en Open Security Labs");
     a.href = c.lab;
     a.rel = "noopener";
     a.append(icon(ICON_LINK, "0 0 16 16"));
-    specRow(dl, "VER TAMBIÉN", a);
+    box.append(a);
   }
-  box.append(head, title, dl);
   return box;
 }
 
@@ -806,10 +759,12 @@ function buildEnd(animate) {
     countdownTimer = setInterval(tick, 1000);
   }
 
-  const install = el("div", "install");
+  const INSTALL = "go install github.com/ValentinTorassa/comandle@latest";
+  const install = el("div", "install code");
   const code = el("code");
-  code.append(el("span", "p", "$ "), "go install github.com/ValentinTorassa/comandle@latest");
-  install.append(el("span", null, "En la terminal"), code);
+  code.append(el("span", "p", "$ "), INSTALL);
+  install.append(code, copyButton(INSTALL, code));
+  install.title = "También se juega en la terminal";
 
   end.append(hero, band, buildMan(c), install);
   end.hidden = false;
@@ -987,21 +942,21 @@ function paintSound() {
 
 // ------------------------------------------------------------------ drawer (phones)
 
-const drawerOpen = () => $("posibles").classList.contains("open");
+const drawerOpen = () => $("words").classList.contains("open");
 
 function openDrawer() {
   if (!game || over()) return;
-  $("posibles").classList.add("open");
+  $("words").classList.add("open");
   $("scrim").hidden = false;
-  $("pos-open").setAttribute("aria-expanded", "true");
-  $("pos-close").focus({ preventScroll: true });
+  $("words-open").setAttribute("aria-expanded", "true");
+  $("words-close").focus({ preventScroll: true });
 }
 
 function closeDrawer() {
   if (!drawerOpen()) return;
-  $("posibles").classList.remove("open");
+  $("words").classList.remove("open");
   $("scrim").hidden = true;
-  $("pos-open").setAttribute("aria-expanded", "false");
+  $("words-open").setAttribute("aria-expanded", "false");
 }
 
 // ------------------------------------------------------------------ dialogs
@@ -1046,9 +1001,9 @@ function renderStats() {
   hist.replaceChildren();
   const last = store.get("comandle:history", []);
   const recent = Array.isArray(last) ? last.slice(-10) : [];
-  if (!recent.length) hist.append(el("span", "empty", "Acá vas a ver tus últimas rondas del día."));
+  if (!recent.length) hist.append(el("span", "empty", "Todavía no hay rondas."));
   for (const h of recent) {
-    const cap = h.won ? capEl("span", "c-mint", String(h.tries), CORRECT) : capEl("span", "c-graphite is-absent", "x");
+    const cap = h.won ? capEl("span", "c-mint", String(h.tries)) : capEl("span", "c-graphite is-absent", "x");
     const label = `#${h.day}: ${h.won ? `${h.tries}/${MAX_TRIES}` : `X/${MAX_TRIES}`}`;
     cap.title = label;
     cap.setAttribute("role", "img");
@@ -1083,7 +1038,7 @@ function renderArchive(n) {
   if (n) {
     const back = el("button", "back");
     back.type = "button";
-    back.append(icon(ICON_BACK), "Volver a la lista");
+    back.append(icon(ICON_BACK), "Volver");
     back.addEventListener("click", () => renderArchive());
     body.append(back, buildMan(daily(commands, n), n));
     back.focus({ preventScroll: true });
@@ -1092,10 +1047,9 @@ function renderArchive(n) {
   }
   const today = dayNumber(Date.now());
   if (today <= 1) {
-    body.append(el("p", "arch-note", "Todavía no hay comandos anteriores: el #1 salió hoy."));
+    body.append(el("p", "arch-note", "Todavía no hay: el #1 es hoy."));
     return;
   }
-  body.append(el("p", "arch-note", "Los comandos de los días que ya pasaron, del más nuevo al más viejo."));
   const list = el("ul", "arch-list");
   for (let d = today - 1; d >= 1; d--) {
     const c = daily(commands, d);
@@ -1160,16 +1114,8 @@ function wire() {
     $("archive").showModal();
   });
   $("toggle-sound").addEventListener("click", () => sound.toggle());
-  $("pos-fit").addEventListener("click", () => {
-    posMode = "fit";
-    if (game) paintPosibles();
-  });
-  $("pos-all").addEventListener("click", () => {
-    posMode = "all";
-    if (game) paintPosibles();
-  });
-  $("pos-open").addEventListener("click", openDrawer);
-  $("pos-close").addEventListener("click", closeDrawer);
+  $("words-open").addEventListener("click", openDrawer);
+  $("words-close").addEventListener("click", closeDrawer);
   $("scrim").addEventListener("click", closeDrawer);
   window.addEventListener("resize", () => {
     if (!phone()) closeDrawer();

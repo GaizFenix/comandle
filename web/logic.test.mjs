@@ -8,7 +8,6 @@ import {
   ABSENT as a,
   CORRECT as c,
   PRESENT as p,
-  candidates,
   cluesVisible,
   daily,
   dayNumber,
@@ -69,17 +68,4 @@ test("stats bookkeeping matches the terminal", () => {
   assert.equal(s.streak, 1, "a skipped day resets the streak");
   s = recordStats(s, 5, false, 6);
   assert.deepEqual([s.streak, s.played, s.wins, s.maxStreak], [0, 4, 3, 2]);
-});
-
-test("candidates keep only the words that fit every guess", () => {
-  const words = readFileSync(new URL("../data/allowed.txt", import.meta.url), "utf8")
-    .split("\n")
-    .map((w) => w.trim())
-    .filter((w) => w && !w.startsWith("#"));
-  // Same case and result as game.Candidates in Go with the real data.
-  const left = candidates(words, ["kill", "ping"], "nmap");
-  assert.deepEqual(left, ["nmap", "snap"]);
-  for (const gone of ["kill", "ping", "find", "grep"]) assert.ok(!left.includes(gone), gone);
-  assert.deepEqual(candidates(["nmap", "chmod", "ping"], [], "nmap"), ["nmap", "ping"], "no guesses: every word of the right length");
-  assert.deepEqual(candidates(["chmod", "chown", "mount"], ["chown"], "chmod"), ["chmod"]);
 });
