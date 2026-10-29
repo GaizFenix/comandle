@@ -11,6 +11,7 @@ import (
 	"math/rand/v2"
 	"os"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"time"
 
@@ -45,11 +46,12 @@ func run(args []string, in io.Reader, out io.Writer, now time.Time) int {
 	case "", "hoy", "jugar":
 		return daily(book, u, in, now)
 	case "practica", "práctica", "practice":
-		pick := ""
-		if len(args) > 1 {
-			pick = args[1]
+		pick, letters, err := practiceArgs(args[1:])
+		if err != nil {
+			u.Problem(err.Error())
+			return 2
 		}
-		return practice(book, u, in, pick)
+		return practice(book, u, in, pick, letters)
 	case "explicar", "explain":
 		if len(args) < 2 {
 			u.Problem("Uso: comandle explicar <comando>")
@@ -89,6 +91,7 @@ func help(out io.Writer) {
 
   comandle                  juega el comandle de hoy
   comandle practica [cmd]   una ronda que no suma a tus estadísticas: al azar, o con ese comando
+  comandle practica -l 5    lo mismo pero con un comando de 5 letras (también --letras)
   comandle explicar <cmd>   explica un comando de la lista
   comandle lista            los comandos de los días que ya pasaron
   comandle stats            tus estadísticas
@@ -153,11 +156,67 @@ func daily(book *game.Book, u *ui.UI, in io.Reader, now time.Time) int {
 	return 0
 }
 
+// practiceArgs parses the arguments after "practica": an optional command name
+// or an optional -l <letras> (also -l=5, -l5 or --letras 5), not both: a command
+// already fixes its length. letters is 0 when not given.
+func practiceArgs(args []string) (pick string, letters int, err error) {
+	errN := errors.New("Uso: comandle practica [cmd | -l <letras>]")
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		val, isN := "", false
+		switch {
+		case a == "-l" || a == "--letras":
+			isN = true
+			if i+1 >= len(args) {
+				return "", 0, errN
+			}
+			i++
+			val = args[i]
+		case strings.HasPrefix(a, "--letras="):
+			isN, val = true, strings.TrimPrefix(a, "--letras=")
+		case strings.HasPrefix(a, "-l="):
+			isN, val = true, strings.TrimPrefix(a, "-l=")
+		case strings.HasPrefix(a, "-l"):
+			isN, val = true, strings.TrimPrefix(a, "-l")
+		}
+		if isN {
+			n, convErr := strconv.Atoi(val)
+			if convErr != nil || n < 1 {
+				return "", 0, errors.New("-l tiene que ser un número de letras mayor que 0.")
+			}
+			letters = n
+			continue
+		}
+		if pick != "" {
+			return "", 0, errN
+		}
+		pick = a
+	}
+	if pick != "" && letters != 0 {
+		return "", 0, errN
+	}
+	return pick, letters, nil
+}
+
 // practice plays a round that does not count. With a command name it plays
-// that one, so a teacher can hand the class a specific command.
-func practice(book *game.Book, u *ui.UI, in io.Reader, pick string) int {
-	answer := &book.Commands[rand.IntN(len(book.Commands))]
-	if pick != "" {
+// that one, so a teacher can hand the class a specific command. With letters
+// it picks a random command of that length.
+func practice(book *game.Book, u *ui.UI, in io.Reader, pick string, letters int) int {
+	var answer *game.Command
+	if pick == "" {
+		var pool []*game.Command
+		for i := range book.Commands {
+			c := &book.Commands[i]
+			if letters == 0 || len([]rune(c.ID)) == letters {
+				pool = append(pool, c)
+			}
+		}
+		if len(pool) == 0 {
+			u.Problem(fmt.Sprintf("No hay comandos de %d letras.", letters))
+			return 1
+		}
+		answer = pool[rand.IntN(len(pool))]
+	} else {
 		c, ok := book.Get(pick)
 		if !ok {
 			u.Problem("«" + pick + "» no está en la lista de comandos del juego.")
