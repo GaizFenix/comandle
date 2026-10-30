@@ -2039,5 +2039,140 @@
       }
     ],
     "security": "Las reglas se pierden al reiniciar salvo que las dejes en /etc/audit/rules.d/, y auditctl -e 2 bloquea la configuración hasta el próximo arranque para que ni siquiera un atacante con root pueda desactivar la auditoría en silencio."
+  },
+  {
+    "id": "hydra",
+    "category": "seguridad",
+    "level": "intermedio",
+    "clues": [
+      "Prueba muchas contraseñas contra un servicio de red hasta dar con la correcta.",
+      "Con -l fijás el usuario, con -P pasás una lista de contraseñas y al final indicás el protocolo y el servidor, como ssh://.",
+      "Su nombre es el de la serpiente mitológica de varias cabezas, porque ataca muchas conexiones en paralelo."
+    ],
+    "summary": "Prueba contraseñas por fuerza bruta contra servicios de red como SSH, FTP o HTTP.",
+    "explanation": "hydra automatiza intentos de inicio de sesión contra decenas de protocolos, como SSH, FTP, HTTP, SMB o bases de datos, probando combinaciones de usuarios y contraseñas en paralelo. Se usa para auditar si un servicio propio acepta credenciales débiles o por defecto. Con -l y -L elegís uno o varios usuarios, con -p y -P una contraseña o una lista, y con -t cuántas conexiones simultáneas abrir.",
+    "examples": [
+      {
+        "cmd": "hydra -l admin -P passwords.txt ssh://192.0.2.10",
+        "desc": "Prueba cada contraseña de la lista con el usuario admin por SSH, contra un servidor de laboratorio."
+      },
+      {
+        "cmd": "hydra -L users.txt -p Cambiar123 -t 4 ftp://192.0.2.10",
+        "desc": "Prueba una sola contraseña con varios usuarios por FTP, usando 4 conexiones en paralelo."
+      },
+      {
+        "cmd": "hydra -l admin -P passwords.txt 192.0.2.10 http-post-form \"/login:user=^USER^&pass=^PASS^:F=incorrecto\"",
+        "desc": "Prueba un formulario de login web: ^USER^ y ^PASS^ se reemplazan en cada intento y F= marca el texto que indica que falló."
+      }
+    ],
+    "security": "Usalo solo contra sistemas propios o con autorización escrita, porque probar contraseñas en servicios ajenos es delito en casi todos los países; para defenderte, limitá los intentos fallidos, bloqueá las cuentas y exigí claves SSH o un segundo factor."
+  },
+  {
+    "id": "ncat",
+    "category": "redes",
+    "level": "intermedio",
+    "clues": [
+      "Abre una conexión TCP o UDP desde la terminal y te deja escribir y leer en ella.",
+      "Con -l se queda escuchando en un puerto, y con --ssl cifra la conexión.",
+      "Es la versión moderna de una vieja navaja suiza de redes y la distribuye el proyecto nmap."
+    ],
+    "summary": "Lee y escribe datos por la red sobre TCP, UDP o SSL: la navaja suiza de las conexiones.",
+    "explanation": "ncat se conecta a un puerto o se pone a escuchar en uno, y manda a la conexión lo que escribís y a la pantalla lo que llega. Sirve para probar un servicio a mano, ver si un puerto responde, transferir archivos o armar un chat rápido entre dos equipos. Lo desarrolla el proyecto nmap y suma SSL, listas de acceso con --allow y --deny, y conexiones a través de un proxy.",
+    "examples": [
+      {
+        "cmd": "printf 'HEAD / HTTP/1.0\\r\\n\\r\\n' | ncat example.com 80",
+        "desc": "Manda un pedido HTTP mínimo y muestra los encabezados de la respuesta."
+      },
+      {
+        "cmd": "ncat -l 9000 > recibido.txt",
+        "desc": "Escucha en el puerto 9000 y guarda en un archivo lo que le envíen."
+      },
+      {
+        "cmd": "ncat 192.0.2.20 9000 < informe.txt",
+        "desc": "Envía un archivo a ese equipo, que tiene que estar escuchando en el puerto 9000."
+      }
+    ],
+    "security": "Cualquiera que llegue al puerto que dejaste escuchando puede enviar o recibir datos sin autenticarse, así que limitá el acceso con --allow, cifrá con --ssl, cerrá el listener apenas termines y no uses -e ni -c para exponer una shell."
+  },
+  {
+    "id": "umask",
+    "category": "permisos",
+    "level": "intermedio",
+    "clues": [
+      "Decide qué permisos NO van a tener por defecto los archivos y directorios que creás.",
+      "Con el valor 022, los archivos nuevos quedan en 644 y los directorios en 755.",
+      "Su nombre viene de «user file creation mask», una máscara que quita permisos a los valores base."
+    ],
+    "summary": "Define los permisos que se quitan por defecto a los archivos y directorios nuevos.",
+    "explanation": "umask es una máscara que le quita permisos a los que el sistema usaría al crear algo: 666 para archivos y 777 para directorios. Con 022 quedan en 644 y 755, y con 077 solo el dueño puede acceder. Es un comando interno del shell, así que afecta a la sesión actual y a los procesos que lance, salvo que lo dejes en ~/.bashrc o en /etc/profile. Se escribe en octal, igual que chmod.",
+    "examples": [
+      {
+        "cmd": "umask",
+        "desc": "Muestra la máscara actual, que suele ser 0022."
+      },
+      {
+        "cmd": "umask 077",
+        "desc": "Hace que todo lo que crees a partir de ahora sea privado: solo vos podés leerlo y escribirlo."
+      },
+      {
+        "cmd": "(umask 027; touch reservado.txt)",
+        "desc": "Cambia la máscara solo dentro del subshell: el archivo queda en 640 y tu sesión no se modifica."
+      }
+    ],
+    "security": "Una máscara demasiado permisiva, como 000, deja los archivos nuevos legibles y modificables por cualquier usuario, así que en cuentas que manejan claves o datos sensibles fijá 027 o 077 en el perfil del shell."
+  },
+  {
+    "id": "grype",
+    "category": "seguridad",
+    "level": "intermedio",
+    "clues": [
+      "Revisa una imagen, un directorio o un SBOM en busca de vulnerabilidades conocidas.",
+      "Cruza los paquetes que encuentra con bases de datos de CVE, y con --fail-on podés hacer que falle según la severidad.",
+      "Lo publica Anchore y es el compañero de syft, que le genera la lista de paquetes."
+    ],
+    "summary": "Escanea imágenes y proyectos en busca de vulnerabilidades conocidas (CVE).",
+    "explanation": "grype analiza imágenes de contenedores, directorios, archivos y SBOM, y compara los paquetes que encuentra con bases de datos de vulnerabilidades como NVD y los avisos de cada distribución. Muestra qué paquete está afectado, su CVE, la gravedad y la versión en que se corrigió. Lo desarrolla Anchore y funciona bien en CI: con --fail-on high hace fallar el pipeline si aparece algo grave.",
+    "examples": [
+      {
+        "cmd": "grype alpine:3.20",
+        "desc": "Escanea la imagen y lista las vulnerabilidades de sus paquetes."
+      },
+      {
+        "cmd": "grype dir:.",
+        "desc": "Escanea el proyecto del directorio actual, con sus dependencias."
+      },
+      {
+        "cmd": "grype alpine:3.20 --fail-on high",
+        "desc": "Termina con error si encuentra vulnerabilidades altas o críticas, útil para frenar un pipeline."
+      }
+    ],
+    "security": "Solo detecta vulnerabilidades ya publicadas y su base se desactualiza, así que corré grype db update antes de escanear y no tomes un resultado vacío como prueba de que una imagen está limpia."
+  },
+  {
+    "id": "watch",
+    "category": "sistema",
+    "level": "básico",
+    "clues": [
+      "Repite un comando una y otra vez y te muestra la salida siempre en el mismo lugar de la pantalla.",
+      "Por defecto lo ejecuta cada dos segundos, y con -n elegís otro intervalo.",
+      "Con -d resalta lo que cambió entre una ejecución y la siguiente."
+    ],
+    "summary": "Ejecuta un comando cada cierto tiempo y muestra su salida actualizada en pantalla.",
+    "explanation": "watch corre un comando de forma periódica, cada 2 segundos por defecto, y redibuja la pantalla con su resultado, así ves cómo evoluciona sin tener que escribirlo una y otra vez. Con -n cambiás el intervalo y con -d marcás las diferencias entre ejecuciones. Es ideal para seguir el espacio en disco, la memoria o un servicio que está arrancando. Se corta con Ctrl+C.",
+    "examples": [
+      {
+        "cmd": "watch df -h",
+        "desc": "Sigue el uso de disco y lo actualiza cada 2 segundos."
+      },
+      {
+        "cmd": "watch -n 5 -d 'ls -l /var/log'",
+        "desc": "Lista los logs cada 5 segundos y resalta los que cambian de tamaño o de fecha."
+      },
+      {
+        "cmd": "watch -n 1 free -m",
+        "desc": "Mira cómo cambia la memoria libre cada segundo."
+      }
+    ],
+    "security": "Si el comando que repetís modifica algo, lo modifica en cada ciclo, así que usalo con comandos de lectura, y evitá pasarle secretos como argumentos porque se ven en la lista de procesos."
   }
 ]

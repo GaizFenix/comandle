@@ -574,6 +574,7 @@ tshark
 tsort
 tune2fs
 udevadm
+umask
 umount
 uname
 unbound
