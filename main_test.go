@@ -151,3 +151,45 @@ func TestPracticeWithACommand(t *testing.T) {
 		t.Errorf("unknown practice command should exit 1, got %d", code)
 	}
 }
+
+func TestPracticeArgs(t *testing.T) {
+	for _, tc := range []struct {
+		args    []string
+		pick    string
+		letters int
+		bad     bool
+	}{
+		{nil, "", 0, false},
+		{[]string{"nmap"}, "nmap", 0, false},
+		{[]string{"-l", "4"}, "", 4, false},
+		{[]string{"-l5"}, "", 5, false},
+		{[]string{"-l=6"}, "", 6, false},
+		{[]string{"--letras", "4"}, "", 4, false},
+		{[]string{"--letras=4"}, "", 4, false},
+		{[]string{"nmap", "-l", "4"}, "", 0, true},
+		{[]string{"-l"}, "", 0, true},
+		{[]string{"-l", "x"}, "", 0, true},
+		{[]string{"-l", "0"}, "", 0, true},
+		{[]string{"a", "b"}, "", 0, true},
+	} {
+		pick, letters, err := practiceArgs(tc.args)
+		if (err != nil) != tc.bad || pick != tc.pick || letters != tc.letters {
+			t.Errorf("practiceArgs(%q) = %q, %d, %v", tc.args, pick, letters, err)
+		}
+	}
+}
+
+func TestPracticeLetters(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	t.Setenv("NO_COLOR", "1")
+	var out bytes.Buffer
+	if code := run([]string{"practica", "-l", "4", "nmap"}, nil, &out, launchDay); code != 2 {
+		t.Errorf("-l with a command should exit 2, got %d", code)
+	}
+	if code := run([]string{"practica", "-l", "99"}, nil, &out, launchDay); code != 1 {
+		t.Errorf("no commands of that length should exit 1, got %d", code)
+	}
+	if code := run([]string{"practica", "-l", "x"}, nil, &out, launchDay); code != 2 {
+		t.Errorf("bad -l should exit 2, got %d", code)
+	}
+}

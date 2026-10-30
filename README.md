@@ -71,6 +71,7 @@ SHA256 contra `SHA256SUMS`.
 comandle                  # el comandle de hoy
 comandle practica         # una ronda al azar que no suma a tus estadísticas
 comandle practica nmap    # practicá un comando puntual (sirve para dar en clase)
+comandle practica -l 5    # una ronda al azar con un comando de 5 letras (o --letras 5)
 comandle explicar chmod   # la ficha de cualquier comando de la lista
 comandle lista            # los comandos de los días que ya pasaron
 comandle stats            # tus estadísticas y tu racha
